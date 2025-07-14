@@ -47,8 +47,6 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { ModelReference } from 'genkit/model';
-import { gemini15Flash } from 'genkit/models';
 
 interface SelectedCell {
   key: string;
@@ -67,7 +65,7 @@ export default function TranslatorPage() {
   const [fileName, setFileName] = useState<string>('Localizable.xcstrings');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [textFilter, setTextFilter] = useState<string>('');
-  const [selectedModel, setSelectedModel] = useState<ModelReference<any>>(gemini15Flash);
+  const [selectedModel, setSelectedModel] = useState<string>('gemini-1.5-flash');
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
