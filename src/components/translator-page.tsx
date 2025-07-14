@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useMemo, ChangeEvent, useRef, useEffect, useTransition } from 'react';
-import { Cog, Upload, Languages, Loader2, FileJson, AlertTriangle } from 'lucide-react';
+import { Cog, Upload, Languages, Loader2, FileJson, PlusCircle, Trash2 } from 'lucide-react';
 import type { ParsedString, TranslationStatus } from '@/types';
 import { parseXcstrings } from '@/lib/xcstrings-parser';
 import { translateStringsAction } from '@/app/actions';
@@ -31,6 +31,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
+  DialogClose
 } from '@/components/ui/dialog';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
@@ -44,6 +45,13 @@ import {
 } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
+import { Progress } from '@/components/ui/progress';
+
+interface LanguageInfo {
+  code: string;
+  total: number;
+  translated: number;
+}
 
 export default function TranslatorPage() {
   const [strings, setStrings] = useState<ParsedString[]>([]);
@@ -53,7 +61,10 @@ export default function TranslatorPage() {
   const [selectedKeys, setSelectedKeys] = useState<Set<string>>(new Set());
   const [apiKey, setApiKey] = useState<string>('');
   const [isApiKeyDialogOpen, setApiKeyDialogOpen] = useState(false);
+  const [isAddLangDialogOpen, setAddLangDialogOpen] = useState(false);
+  const [newLanguage, setNewLanguage] = useState('');
   const [isPending, startTransition] = useTransition();
+  const [originalJson, setOriginalJson] = useState<any>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
@@ -65,6 +76,22 @@ export default function TranslatorPage() {
     }
   }, []);
 
+  const languageStats = useMemo((): LanguageInfo[] => {
+    if (!originalJson) return [];
+
+    const languages = new Set<string>([originalJson.sourceLanguage, ...Object.keys(Object.values(originalJson.strings)[0]?.localizations || {})]);
+    
+    return Array.from(allLanguages).map(lang => {
+      if (lang === sourceLanguage) {
+        return { code: lang, total: strings.length, translated: strings.length };
+      }
+      const { parsedData } = parseXcstrings(originalJson, lang);
+      const translatedCount = parsedData.filter(s => s.status === 'translated').length;
+      return { code: lang, total: strings.length, translated: translatedCount };
+    });
+  }, [originalJson, allLanguages, sourceLanguage, strings.length]);
+
+
   const handleFileChange = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
@@ -74,18 +101,25 @@ export default function TranslatorPage() {
       try {
         const content = e.target?.result as string;
         const jsonData = JSON.parse(content);
+        setOriginalJson(jsonData);
+
         const { parsedData, languages, sourceLanguage } = parseXcstrings(jsonData, targetLanguage);
+        
         setStrings(parsedData);
         setAllLanguages(languages);
         setSourceLanguage(sourceLanguage);
         setSelectedKeys(new Set());
+
         if (languages.length > 1 && !targetLanguage) {
             const defaultTarget = languages.find(l => l !== sourceLanguage) || '';
             setTargetLanguage(defaultTarget);
-            // re-parse with the new target language
             const { parsedData: reparsedData } = parseXcstrings(jsonData, defaultTarget);
             setStrings(reparsedData);
+        } else if (targetLanguage) {
+            const { parsedData: reparsedData } = parseXcstrings(jsonData, targetLanguage);
+            setStrings(reparsedData);
         }
+
         toast({ title: 'File loaded successfully', description: `${parsedData.length} strings found.` });
       } catch (error) {
         console.error('Failed to parse file:', error);
@@ -102,18 +136,27 @@ export default function TranslatorPage() {
   
   const handleTargetLanguageChange = (lang: string) => {
       setTargetLanguage(lang);
-      // We need to re-parse the strings to reflect the new target language values
-      // This assumes we kept the original file content or re-read it.
-      // For simplicity here, we'll just update statuses based on current data.
-      setStrings(currentStrings => 
-        currentStrings.map(s => ({...s, targetValue: '', status: 'new'}))
-      );
-      toast({ title: `Target language set to ${lang}. Re-import your file to see existing translations for this language.`});
+      if(originalJson){
+         const { parsedData } = parseXcstrings(originalJson, lang);
+         setStrings(parsedData);
+         setSelectedKeys(new Set());
+      }
   };
+
+  const handleAddNewLanguage = () => {
+    if (!newLanguage || allLanguages.includes(newLanguage)) {
+        toast({variant: 'destructive', title: 'Invalid Language', description: 'Please enter a unique language code.'})
+        return;
+    }
+    setAllLanguages(current => [...current, newLanguage]);
+    setNewLanguage('');
+    setAddLangDialogOpen(false);
+    toast({title: 'Language Added', description: `You can now select "${newLanguage}" as a target language.`})
+  }
 
   const handleSelectAll = (checked: boolean | 'indeterminate') => {
     if (checked === true) {
-      const newKeys = new Set(strings.filter(s => s.status === 'new' || s.status === 'untranslated').map(s => s.key));
+      const newKeys = new Set(strings.filter(s => s.status === 'new' || s.status === 'untranslated' || s.status === 'error').map(s => s.key));
       setSelectedKeys(newKeys);
     } else {
       setSelectedKeys(new Set());
@@ -168,6 +211,26 @@ export default function TranslatorPage() {
         return s;
       }));
 
+      // Update original JSON with new translations
+      if (originalJson) {
+        const newJson = JSON.parse(JSON.stringify(originalJson));
+        results.forEach(result => {
+           if (!result.error && newJson.strings[result.key]) {
+               if (!newJson.strings[result.key].localizations) {
+                   newJson.strings[result.key].localizations = {};
+               }
+               newJson.strings[result.key].localizations[targetLanguage] = {
+                   stringUnit: {
+                       state: 'translated',
+                       value: result.translatedText,
+                   }
+               };
+           }
+        });
+        setOriginalJson(newJson);
+      }
+
+
       const successfulTranslations = results.filter(r => !r.error).length;
       const failedTranslations = results.length - successfulTranslations;
 
@@ -180,7 +243,7 @@ export default function TranslatorPage() {
   };
   
   const stringsToTranslateCount = useMemo(() => {
-    return strings.filter(s => s.status === 'new' || s.status === 'untranslated').length;
+    return strings.filter(s => s.status === 'new' || s.status === 'untranslated' || s.status === 'error').length;
   }, [strings]);
 
   const StatusBadge = ({ status }: { status: TranslationStatus }) => {
@@ -241,71 +304,128 @@ export default function TranslatorPage() {
             <input type="file" ref={fileInputRef} onChange={handleFileChange} accept=".xcstrings" className="hidden" />
           </div>
         ) : (
-          <>
-            <div className="flex flex-col sm:flex-row gap-4 mb-4 items-center">
-                <Button onClick={() => fileInputRef.current?.click()} variant="outline">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="lg:col-span-1 flex flex-col gap-4">
+                <div className="flex items-center justify-between">
+                    <h3 className="text-lg font-semibold">Languages</h3>
+                    <Dialog open={isAddLangDialogOpen} onOpenChange={setAddLangDialogOpen}>
+                      <DialogTrigger asChild>
+                        <Button variant="ghost" size="sm"><PlusCircle className="mr-2 h-4 w-4"/>Add New</Button>
+                      </DialogTrigger>
+                      <DialogContent>
+                        <DialogHeader>
+                          <DialogTitle>Add New Language</DialogTitle>
+                          <DialogDescription>
+                            Enter the language code (e.g., 'es' for Spanish, 'de' for German).
+                          </DialogDescription>
+                        </DialogHeader>
+                        <div className="grid gap-4 py-4">
+                            <Label htmlFor="new-lang-code">Language Code</Label>
+                            <Input id="new-lang-code" value={newLanguage} onChange={(e) => setNewLanguage(e.target.value.toLowerCase())} placeholder="e.g., fr" />
+                        </div>
+                        <DialogFooter>
+                            <DialogClose asChild>
+                                <Button variant="outline">Cancel</Button>
+                            </DialogClose>
+                            <Button onClick={handleAddNewLanguage}>Add Language</Button>
+                        </DialogFooter>
+                      </DialogContent>
+                    </Dialog>
+                </div>
+                <div className="rounded-md border">
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead>Language</TableHead>
+                                <TableHead>Progress</TableHead>
+                                <TableHead className="text-right">Action</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {languageStats.map((langInfo) => (
+                                <TableRow key={langInfo.code} data-state={targetLanguage === langInfo.code ? 'selected' : ''}>
+                                    <TableCell>
+                                        <div className="flex items-center gap-2">
+                                            <span className="font-medium">{langInfo.code}</span>
+                                            {langInfo.code === sourceLanguage && <Badge variant="secondary">Source</Badge>}
+                                        </div>
+                                    </TableCell>
+                                    <TableCell>
+                                        <div className="flex items-center gap-2">
+                                            <Progress value={(langInfo.translated / langInfo.total) * 100} className="w-20 h-2" />
+                                            <span className="text-xs text-muted-foreground">{langInfo.translated}/{langInfo.total}</span>
+                                        </div>
+                                    </TableCell>
+                                    <TableCell className="text-right">
+                                        <Button 
+                                            size="sm" 
+                                            variant={targetLanguage === langInfo.code ? 'default' : 'ghost'}
+                                            onClick={() => handleTargetLanguageChange(langInfo.code)}
+                                            disabled={langInfo.code === sourceLanguage}
+                                        >
+                                            {targetLanguage === langInfo.code ? 'Selected' : 'Select'}
+                                        </Button>
+                                    </TableCell>
+                                </TableRow>
+                            ))}
+                        </TableBody>
+                    </Table>
+                </div>
+                 <Button onClick={() => fileInputRef.current?.click()} variant="outline">
                   <Upload className="mr-2 h-4 w-4" /> Import New File
                 </Button>
                 <input type="file" ref={fileInputRef} onChange={handleFileChange} accept=".xcstrings" className="hidden" />
-              
-                <div className="flex items-center gap-2">
-                    <Label>From: </Label>
-                    <Badge variant="secondary">{sourceLanguage}</Badge>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Label htmlFor='target-lang'>To:</Label>
-                  <Select onValueChange={handleTargetLanguageChange} value={targetLanguage} disabled={allLanguages.length === 0}>
-                    <SelectTrigger className="w-[180px]" id="target-lang">
-                      <SelectValue placeholder="Select language" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {allLanguages.filter(l => l !== sourceLanguage).map(lang => (
-                        <SelectItem key={lang} value={lang}>{lang}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
             </div>
-            <Separator className="my-4" />
-            <div className="relative overflow-x-auto rounded-md border">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="w-12">
-                      <Checkbox 
-                        onCheckedChange={handleSelectAll}
-                        checked={selectedKeys.size > 0 && selectedKeys.size === stringsToTranslateCount}
-                        aria-label="Select all rows for translation"
-                      />
-                    </TableHead>
-                    <TableHead>Key</TableHead>
-                    <TableHead>Source ({sourceLanguage})</TableHead>
-                    <TableHead>Target ({targetLanguage})</TableHead>
-                    <TableHead className="text-center w-32">Status</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {strings.map((s) => (
-                    <TableRow key={s.key} data-state={selectedKeys.has(s.key) ? 'selected' : ''}>
-                      <TableCell>
+
+            <div className="lg:col-span-2">
+              <h3 className="text-lg font-semibold mb-4">Strings for <span className="font-mono text-primary bg-primary/10 px-2 py-1 rounded-md">{targetLanguage}</span></h3>
+              <div className="relative overflow-x-auto rounded-md border">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="w-12">
                         <Checkbox 
-                            onCheckedChange={(checked) => handleSelectRow(s.key, !!checked)}
-                            checked={selectedKeys.has(s.key)}
-                            disabled={s.status !== 'new' && s.status !== 'untranslated' && s.status !== 'error'}
+                          onCheckedChange={handleSelectAll}
+                          checked={selectedKeys.size > 0 && selectedKeys.size === stringsToTranslateCount && stringsToTranslateCount > 0}
+                          disabled={stringsToTranslateCount === 0}
+                          aria-label="Select all rows for translation"
                         />
-                      </TableCell>
-                      <TableCell className="font-mono text-xs">{s.key}</TableCell>
-                      <TableCell>{s.sourceValue}</TableCell>
-                      <TableCell className="text-muted-foreground">{s.targetValue}</TableCell>
-                      <TableCell className="text-center">
-                        <StatusBadge status={s.status} />
-                      </TableCell>
+                      </TableHead>
+                      <TableHead>Key</TableHead>
+                      <TableHead>Source ({sourceLanguage})</TableHead>
+                      <TableHead>Target ({targetLanguage})</TableHead>
+                      <TableHead className="text-center w-32">Status</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {strings.length > 0 ? strings.map((s) => (
+                      <TableRow key={s.key} data-state={selectedKeys.has(s.key) ? 'selected' : ''}>
+                        <TableCell>
+                          <Checkbox 
+                              onCheckedChange={(checked) => handleSelectRow(s.key, !!checked)}
+                              checked={selectedKeys.has(s.key)}
+                              disabled={s.status !== 'new' && s.status !== 'untranslated' && s.status !== 'error'}
+                          />
+                        </TableCell>
+                        <TableCell className="font-mono text-xs">{s.key}</TableCell>
+                        <TableCell>{s.sourceValue}</TableCell>
+                        <TableCell className="text-muted-foreground">{s.targetValue}</TableCell>
+                        <TableCell className="text-center">
+                          <StatusBadge status={s.status} />
+                        </TableCell>
+                      </TableRow>
+                    )) : (
+                      <TableRow>
+                        <TableCell colSpan={5} className="text-center h-24 text-muted-foreground">
+                            {targetLanguage ? `No strings found for ${targetLanguage}.` : 'Select a target language to begin.'}
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
             </div>
-          </>
+          </div>
         )}
       </CardContent>
       {strings.length > 0 && (
