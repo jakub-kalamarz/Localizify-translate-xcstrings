@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useMemo, ChangeEvent, useRef, useEffect, useTransition } from 'react';
@@ -439,7 +440,7 @@ export default function TranslatorPage() {
                             <SelectItem value="geminiLite">Gemini 2.5 Flash</SelectItem>
                         </SelectContent>
                     </Select>
-                    <Button onClick={handleTranslateSelected} disabled={isPending || selectedCells.length === 0}>
+                    <Button onClick={handleTranslateSelected} disabled={isPending || selectedCells.length === 0 || !geminiApiKey}>
                         {isPending ? (
                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                         ) : (
