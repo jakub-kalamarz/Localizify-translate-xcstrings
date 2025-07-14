@@ -1,7 +1,11 @@
 'use server';
 
 import { translateString } from '@/ai/flows/translate-strings';
-import type { ParsedString } from '@/types';
+
+interface TranslationRequest {
+    key: string;
+    text: string;
+}
 
 interface TranslationResult {
   key: string;
@@ -10,18 +14,18 @@ interface TranslationResult {
 }
 
 export async function translateStringsAction(
-  stringsToTranslate: ParsedString[],
+  stringsToTranslate: TranslationRequest[],
   sourceLanguage: string,
   targetLanguage: string
 ): Promise<TranslationResult[]> {
   const translations = await Promise.all(
     stringsToTranslate.map(async (str) => {
       try {
-        if (!str.sourceValue) {
+        if (!str.text) {
            return { key: str.key, translatedText: '', error: 'Source text is empty.' };
         }
         const result = await translateString({
-          text: str.sourceValue,
+          text: str.text,
           sourceLanguage,
           targetLanguage,
         });

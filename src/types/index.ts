@@ -20,11 +20,16 @@ export interface LocalizationDetail {
 }
 
 // type for our internal representation
-export type TranslationStatus = 'new' | 'translated' | 'in-progress' | 'error' | 'untranslated';
+export type TranslationStatus = 'new' | 'translated' | 'in-progress' | 'error' | 'untranslated' | 'non-translatable';
+
+export interface LanguageTranslation {
+  value: string;
+  status: TranslationStatus;
+}
 
 export interface ParsedString {
   key: string;
+  comment: string;
   sourceValue: string;
-  targetValue: string;
-  status: TranslationStatus;
+  translations: Record<string, LanguageTranslation>; // langCode -> { value, status }
 }

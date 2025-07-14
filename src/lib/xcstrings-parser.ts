@@ -1,36 +1,49 @@
-import type { ParsedString, StringEntry } from '@/types';
+import type { ParsedString, StringEntry, LanguageTranslation } from '@/types';
 
 export function parseXcstrings(
-  jsonData: any,
-  targetLanguage: string
+  jsonData: any
 ): { parsedData: ParsedString[]; languages: string[]; sourceLanguage: string } {
   const sourceLanguage = jsonData.sourceLanguage || 'en';
   const strings = jsonData.strings || {};
+  
+  // First pass: collect all languages
   const languages = new Set<string>();
   languages.add(sourceLanguage);
+  Object.values(strings).forEach((value) => {
+    const entry = value as StringEntry;
+    if (entry.localizations) {
+      Object.keys(entry.localizations).forEach(lang => languages.add(lang));
+    }
+  });
+  const allLangs = Array.from(languages).sort();
+  const targetLanguages = allLangs.filter(l => l !== sourceLanguage);
 
+  // Second pass: build the full ParsedString object for each key
   const parsedData: ParsedString[] = Object.entries(strings).map(([key, value]) => {
     const entry = value as StringEntry;
-    const localizations = entry.localizations || {};
+    const translations: Record<string, LanguageTranslation> = {};
     
-    Object.keys(localizations).forEach(lang => languages.add(lang));
+    targetLanguages.forEach(lang => {
+      const localization = entry.localizations?.[lang]?.stringUnit;
+      
+      let status: LanguageTranslation['status'] = 'new';
+      if(localization) {
+          status = (localization.state === 'translated' && localization.value) ? 'translated' : 'untranslated';
+      }
 
-    const sourceLocalization = localizations[sourceLanguage]?.stringUnit;
-    const targetLocalization = localizations[targetLanguage]?.stringUnit;
-
-    const getStatus = () => {
-      if (!targetLocalization) return 'new';
-      if (targetLocalization.state === 'translated' && targetLocalization.value) return 'translated';
-      return 'untranslated';
-    }
+      translations[lang] = {
+        value: localization?.value || '',
+        status: status,
+      };
+    });
 
     return {
       key,
-      sourceValue: sourceLocalization?.value || entry.comment || key,
-      targetValue: targetLocalization?.value || '',
-      status: getStatus(),
+      comment: entry.comment || '',
+      sourceValue: entry.localizations?.[sourceLanguage]?.stringUnit?.value || key,
+      translations,
     };
   });
 
-  return { parsedData, languages: Array.from(languages).sort(), sourceLanguage };
+  return { parsedData, languages: allLangs, sourceLanguage };
 }

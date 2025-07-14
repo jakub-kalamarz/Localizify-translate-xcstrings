@@ -1,8 +1,8 @@
 'use client';
 
 import { useState, useMemo, ChangeEvent, useRef, useEffect, useTransition } from 'react';
-import { Cog, Upload, Languages, Loader2, FileJson, PlusCircle, Trash2 } from 'lucide-react';
-import type { ParsedString, TranslationStatus } from '@/types';
+import { Cog, Upload, Languages, Loader2, FileJson, MoreHorizontal, Copy, XCircle, Type } from 'lucide-react';
+import type { ParsedString, TranslationStatus, LanguageTranslation } from '@/types';
 import { parseXcstrings } from '@/lib/xcstrings-parser';
 import { translateStringsAction } from '@/app/actions';
 import { useToast } from '@/hooks/use-toast';
@@ -11,7 +11,6 @@ import {
   Card,
   CardContent,
   CardDescription,
-  CardFooter,
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
@@ -31,40 +30,31 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-  DialogClose
 } from '@/components/ui/dialog';
-import { Checkbox } from '@/components/ui/checkbox';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
-import { Progress } from '@/components/ui/progress';
 
-interface LanguageInfo {
-  code: string;
-  total: number;
-  translated: number;
+interface SelectedCell {
+  key: string;
+  lang: string;
 }
 
 export default function TranslatorPage() {
   const [strings, setStrings] = useState<ParsedString[]>([]);
-  const [sourceLanguage, setSourceLanguage] = useState<string>('en');
-  const [targetLanguage, setTargetLanguage] = useState<string>('');
+  const [sourceLanguage, setSourceLanguage] = useState<string>('');
   const [allLanguages, setAllLanguages] = useState<string[]>([]);
-  const [selectedKeys, setSelectedKeys] = useState<Set<string>>(new Set());
   const [apiKey, setApiKey] = useState<string>('');
   const [isApiKeyDialogOpen, setApiKeyDialogOpen] = useState(false);
-  const [isAddLangDialogOpen, setAddLangDialogOpen] = useState(false);
-  const [newLanguage, setNewLanguage] = useState('');
   const [isPending, startTransition] = useTransition();
   const [originalJson, setOriginalJson] = useState<any>(null);
+  const [selectedCells, setSelectedCells] = useState<SelectedCell[]>([]);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
@@ -75,22 +65,6 @@ export default function TranslatorPage() {
       setApiKey(storedApiKey);
     }
   }, []);
-
-  const languageStats = useMemo((): LanguageInfo[] => {
-    if (!originalJson) return [];
-
-    const languages = new Set<string>([originalJson.sourceLanguage, ...Object.keys(Object.values(originalJson.strings)[0]?.localizations || {})]);
-    
-    return Array.from(allLanguages).map(lang => {
-      if (lang === sourceLanguage) {
-        return { code: lang, total: strings.length, translated: strings.length };
-      }
-      const { parsedData } = parseXcstrings(originalJson, lang);
-      const translatedCount = parsedData.filter(s => s.status === 'translated').length;
-      return { code: lang, total: strings.length, translated: translatedCount };
-    });
-  }, [originalJson, allLanguages, sourceLanguage, strings.length]);
-
 
   const handleFileChange = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -103,22 +77,12 @@ export default function TranslatorPage() {
         const jsonData = JSON.parse(content);
         setOriginalJson(jsonData);
 
-        const { parsedData, languages, sourceLanguage } = parseXcstrings(jsonData, targetLanguage);
+        const { parsedData, languages, sourceLanguage } = parseXcstrings(jsonData);
         
         setStrings(parsedData);
         setAllLanguages(languages);
         setSourceLanguage(sourceLanguage);
-        setSelectedKeys(new Set());
-
-        if (languages.length > 1 && !targetLanguage) {
-            const defaultTarget = languages.find(l => l !== sourceLanguage) || '';
-            setTargetLanguage(defaultTarget);
-            const { parsedData: reparsedData } = parseXcstrings(jsonData, defaultTarget);
-            setStrings(reparsedData);
-        } else if (targetLanguage) {
-            const { parsedData: reparsedData } = parseXcstrings(jsonData, targetLanguage);
-            setStrings(reparsedData);
-        }
+        setSelectedCells([]);
 
         toast({ title: 'File loaded successfully', description: `${parsedData.length} strings found.` });
       } catch (error) {
@@ -134,44 +98,16 @@ export default function TranslatorPage() {
     event.target.value = ''; // Reset file input
   };
   
-  const handleTargetLanguageChange = (lang: string) => {
-      setTargetLanguage(lang);
-      if(originalJson){
-         const { parsedData } = parseXcstrings(originalJson, lang);
-         setStrings(parsedData);
-         setSelectedKeys(new Set());
+  const handleCellClick = (key: string, lang: string) => {
+      const cell: SelectedCell = { key, lang };
+      const isSelected = selectedCells.some(c => c.key === key && c.lang === lang);
+
+      if (isSelected) {
+          setSelectedCells(prev => prev.filter(c => !(c.key === key && c.lang === lang)));
+      } else {
+          setSelectedCells(prev => [...prev, cell]);
       }
-  };
-
-  const handleAddNewLanguage = () => {
-    if (!newLanguage || allLanguages.includes(newLanguage)) {
-        toast({variant: 'destructive', title: 'Invalid Language', description: 'Please enter a unique language code.'})
-        return;
-    }
-    setAllLanguages(current => [...current, newLanguage]);
-    setNewLanguage('');
-    setAddLangDialogOpen(false);
-    toast({title: 'Language Added', description: `You can now select "${newLanguage}" as a target language.`})
   }
-
-  const handleSelectAll = (checked: boolean | 'indeterminate') => {
-    if (checked === true) {
-      const newKeys = new Set(strings.filter(s => s.status === 'new' || s.status === 'untranslated' || s.status === 'error').map(s => s.key));
-      setSelectedKeys(newKeys);
-    } else {
-      setSelectedKeys(new Set());
-    }
-  };
-
-  const handleSelectRow = (key: string, checked: boolean) => {
-    const newSelectedKeys = new Set(selectedKeys);
-    if (checked) {
-      newSelectedKeys.add(key);
-    } else {
-      newSelectedKeys.delete(key);
-    }
-    setSelectedKeys(newSelectedKeys);
-  };
 
   const handleSaveApiKey = (newApiKey: string) => {
     setApiKey(newApiKey);
@@ -180,9 +116,9 @@ export default function TranslatorPage() {
     setApiKeyDialogOpen(false);
   };
   
-  const handleTranslate = () => {
-    if (selectedKeys.size === 0) {
-      toast({ variant: 'destructive', title: 'No strings selected', description: 'Please select strings to translate.'});
+  const handleTranslateSelected = () => {
+    if (selectedCells.length === 0) {
+      toast({ variant: 'destructive', title: 'No cells selected', description: 'Click on a cell to select it for translation.'});
       return;
     }
      if (!apiKey) {
@@ -191,103 +127,162 @@ export default function TranslatorPage() {
     }
 
     startTransition(async () => {
-      const stringsToTranslate = strings.filter(s => selectedKeys.has(s.key));
-      
-      setStrings(current => current.map(s => selectedKeys.has(s.key) ? { ...s, status: 'in-progress' } : s));
-
-      const results = await translateStringsAction(stringsToTranslate, sourceLanguage, targetLanguage);
-
-      const resultsMap = new Map(results.map(r => [r.key, r]));
-
+      // Mark selected cells as in-progress
       setStrings(current => current.map(s => {
-        if (resultsMap.has(s.key)) {
-          const result = resultsMap.get(s.key)!;
-          return {
-            ...s,
-            targetValue: result.translatedText,
-            status: result.error ? 'error' : 'translated',
-          };
+          const newTranslations = { ...s.translations };
+          let changed = false;
+          selectedCells.forEach(cell => {
+              if (cell.key === s.key && newTranslations[cell.lang]) {
+                  newTranslations[cell.lang].status = 'in-progress';
+                  changed = true;
+              }
+          });
+          return changed ? { ...s, translations: newTranslations } : s;
+      }));
+      
+      const translationsByLang = selectedCells.reduce((acc, cell) => {
+        if (!acc[cell.lang]) {
+          acc[cell.lang] = [];
         }
-        return s;
+        const stringToTranslate = strings.find(s => s.key === cell.key);
+        if (stringToTranslate) {
+          acc[cell.lang].push({ key: cell.key, text: stringToTranslate.sourceValue });
+        }
+        return acc;
+      }, {} as Record<string, {key: string; text: string}[]>);
+
+      const allPromises = Object.entries(translationsByLang).map(([lang, aStrings]) => 
+          translateStringsAction(aStrings, sourceLanguage, lang)
+      );
+
+      const allResults = await Promise.all(allPromises);
+
+      const flatResults = allResults.flat();
+      const resultsMap = new Map(flatResults.map(r => [`${r.key}-${r.translatedText}`, r]));
+
+      setStrings(current => current.map(str => {
+          const newTranslations = { ...str.translations };
+          let changed = false;
+          Object.keys(newTranslations).forEach(lang => {
+              const result = flatResults.find(r => r.key === str.key && selectedCells.some(sc => sc.key === str.key && sc.lang === lang));
+              if (result) {
+                  newTranslations[lang] = {
+                      value: result.error ? str.translations[lang].value : result.translatedText,
+                      status: result.error ? 'error' : 'translated'
+                  };
+                  changed = true;
+              }
+          })
+          return changed ? { ...str, translations: newTranslations } : str;
       }));
 
-      // Update original JSON with new translations
-      if (originalJson) {
-        const newJson = JSON.parse(JSON.stringify(originalJson));
-        results.forEach(result => {
-           if (!result.error && newJson.strings[result.key]) {
-               if (!newJson.strings[result.key].localizations) {
-                   newJson.strings[result.key].localizations = {};
+      // Update original JSON
+       if (originalJson) {
+         const newJson = JSON.parse(JSON.stringify(originalJson));
+         flatResults.forEach(result => {
+           const lang = Object.keys(translationsByLang).find(l => translationsByLang[l].some(s => s.key === result.key));
+           if (lang && !result.error && newJson.strings[result.key]) {
+             if (!newJson.strings[result.key].localizations) {
+               newJson.strings[result.key].localizations = {};
+             }
+             newJson.strings[result.key].localizations[lang] = {
+               stringUnit: {
+                 state: 'translated',
+                 value: result.translatedText,
                }
-               newJson.strings[result.key].localizations[targetLanguage] = {
-                   stringUnit: {
-                       state: 'translated',
-                       value: result.translatedText,
-                   }
-               };
+             };
            }
-        });
-        setOriginalJson(newJson);
-      }
+         });
+         setOriginalJson(newJson);
+       }
 
-
-      const successfulTranslations = results.filter(r => !r.error).length;
-      const failedTranslations = results.length - successfulTranslations;
-
-      toast({
-        title: 'Translation Complete',
-        description: `${successfulTranslations} succeeded, ${failedTranslations} failed.`
-      });
-      setSelectedKeys(new Set());
+      toast({ title: 'Translation Complete' });
+      setSelectedCells([]);
     });
   };
+
+  const setRowStatus = (key: string, status: TranslationStatus) => {
+    setStrings(current => current.map(s => {
+      if (s.key === key) {
+        const newTranslations = { ...s.translations };
+        Object.keys(newTranslations).forEach(lang => {
+          newTranslations[lang].status = status;
+          if(status === 'non-translatable') {
+            newTranslations[lang].value = s.sourceValue;
+          }
+        });
+        return { ...s, translations: newTranslations };
+      }
+      return s;
+    }));
+  };
   
-  const stringsToTranslateCount = useMemo(() => {
-    return strings.filter(s => s.status === 'new' || s.status === 'untranslated' || s.status === 'error').length;
-  }, [strings]);
+  const copySourceToAll = (key: string) => {
+    setStrings(current => current.map(s => {
+        if (s.key === key) {
+            const newTranslations = { ...s.translations };
+            Object.keys(newTranslations).forEach(lang => {
+                newTranslations[lang].value = s.sourceValue;
+                newTranslations[lang].status = 'translated';
+            });
+            return { ...s, translations: newTranslations };
+        }
+        return s;
+    }))
+  };
 
   const StatusBadge = ({ status }: { status: TranslationStatus }) => {
     const variant: "default" | "secondary" | "destructive" | "outline" = useMemo(() => {
         switch (status) {
             case 'translated': return 'default';
             case 'new': return 'secondary';
+            case 'untranslated': return 'secondary';
+            case 'non-translatable': return 'outline';
             case 'in-progress': return 'outline';
             case 'error': return 'destructive';
             default: return 'secondary';
         }
     }, [status]);
     const text = status === 'untranslated' ? 'new' : status;
-    return <Badge variant={variant} className="capitalize w-[100px] justify-center">{text}</Badge>;
+    return <Badge variant={variant} className="capitalize w-full justify-center">{text}</Badge>;
   };
 
+  const targetLanguages = useMemo(() => allLanguages.filter(l => l !== sourceLanguage), [allLanguages, sourceLanguage]);
+
   return (
-    <Card className="w-full max-w-7xl mx-auto shadow-lg">
+    <Card className="w-full max-w-[95vw] mx-auto shadow-lg">
       <CardHeader>
-        <div className="flex justify-between items-center">
-          <div>
-            <CardTitle className="text-2xl font-headline text-primary">XCStrings Translator</CardTitle>
-            <CardDescription>Import, view, and translate .xcstrings files with AI.</CardDescription>
-          </div>
-          <Dialog open={isApiKeyDialogOpen} onOpenChange={setApiKeyDialogOpen}>
-            <DialogTrigger asChild>
-              <Button variant="outline" size="icon"><Cog className="h-4 w-4" /></Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>API Key Settings</DialogTitle>
-                <DialogDescription>
-                  Enter your Gemini API key. This is stored securely in your browser&apos;s local storage and never sent to our servers.
-                </DialogDescription>
-              </DialogHeader>
-              <div className="grid gap-4 py-4">
-                <Label htmlFor="apiKey">Gemini API Key</Label>
-                <Input id="apiKey" type="password" defaultValue={apiKey} onChange={e => setApiKey(e.target.value)} />
-              </div>
-              <DialogFooter>
-                <Button onClick={() => handleSaveApiKey(apiKey)}>Save Key</Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
+        <div className="flex justify-between items-start">
+            <div>
+                <CardTitle className="text-2xl font-headline text-primary">XCStrings Translator</CardTitle>
+                <CardDescription>Import, view, and translate .xcstrings files with AI. Click on cells to select them for translation.</CardDescription>
+            </div>
+            <div className="flex items-center gap-2">
+                <Button onClick={() => fileInputRef.current?.click()} variant="outline">
+                  <Upload className="mr-2 h-4 w-4" /> Import File
+                </Button>
+                <input type="file" ref={fileInputRef} onChange={handleFileChange} accept=".xcstrings" className="hidden" />
+                 <Dialog open={isApiKeyDialogOpen} onOpenChange={setApiKeyDialogOpen}>
+                    <DialogTrigger asChild>
+                    <Button variant="outline" size="icon"><Cog className="h-4 w-4" /></Button>
+                    </DialogTrigger>
+                    <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>API Key Settings</DialogTitle>
+                        <DialogDescription>
+                        Enter your Gemini API key. This is stored securely in your browser&apos;s local storage and never sent to our servers.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="grid gap-4 py-4">
+                        <Label htmlFor="apiKey">Gemini API Key</Label>
+                        <Input id="apiKey" type="password" defaultValue={apiKey} onChange={e => setApiKey(e.target.value)} />
+                    </div>
+                    <DialogFooter>
+                        <Button onClick={() => handleSaveApiKey(apiKey)}>Save Key</Button>
+                    </DialogFooter>
+                    </DialogContent>
+                </Dialog>
+            </div>
         </div>
       </CardHeader>
       <CardContent>
@@ -297,149 +292,89 @@ export default function TranslatorPage() {
               <FileJson className="w-16 h-16 text-muted-foreground" />
             </div>
             <h3 className="text-xl font-semibold mb-2">Start by importing a file</h3>
-            <p className="text-muted-foreground mb-4">Click the button below to select your .xcstrings file.</p>
-            <Button onClick={() => fileInputRef.current?.click()}>
-              <Upload className="mr-2 h-4 w-4" /> Import .xcstrings
-            </Button>
-            <input type="file" ref={fileInputRef} onChange={handleFileChange} accept=".xcstrings" className="hidden" />
+            <p className="text-muted-foreground mb-4">Click the button above to select your .xcstrings file.</p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <div className="lg:col-span-1 flex flex-col gap-4">
-                <div className="flex items-center justify-between">
-                    <h3 className="text-lg font-semibold">Languages</h3>
-                    <Dialog open={isAddLangDialogOpen} onOpenChange={setAddLangDialogOpen}>
-                      <DialogTrigger asChild>
-                        <Button variant="ghost" size="sm"><PlusCircle className="mr-2 h-4 w-4"/>Add New</Button>
-                      </DialogTrigger>
-                      <DialogContent>
-                        <DialogHeader>
-                          <DialogTitle>Add New Language</DialogTitle>
-                          <DialogDescription>
-                            Enter the language code (e.g., 'es' for Spanish, 'de' for German).
-                          </DialogDescription>
-                        </DialogHeader>
-                        <div className="grid gap-4 py-4">
-                            <Label htmlFor="new-lang-code">Language Code</Label>
-                            <Input id="new-lang-code" value={newLanguage} onChange={(e) => setNewLanguage(e.target.value.toLowerCase())} placeholder="e.g., fr" />
-                        </div>
-                        <DialogFooter>
-                            <DialogClose asChild>
-                                <Button variant="outline">Cancel</Button>
-                            </DialogClose>
-                            <Button onClick={handleAddNewLanguage}>Add Language</Button>
-                        </DialogFooter>
-                      </DialogContent>
-                    </Dialog>
-                </div>
-                <div className="rounded-md border">
-                    <Table>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead>Language</TableHead>
-                                <TableHead>Progress</TableHead>
-                                <TableHead className="text-right">Action</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {languageStats.map((langInfo) => (
-                                <TableRow key={langInfo.code} data-state={targetLanguage === langInfo.code ? 'selected' : ''}>
-                                    <TableCell>
-                                        <div className="flex items-center gap-2">
-                                            <span className="font-medium">{langInfo.code}</span>
-                                            {langInfo.code === sourceLanguage && <Badge variant="secondary">Source</Badge>}
-                                        </div>
-                                    </TableCell>
-                                    <TableCell>
-                                        <div className="flex items-center gap-2">
-                                            <Progress value={(langInfo.translated / langInfo.total) * 100} className="w-20 h-2" />
-                                            <span className="text-xs text-muted-foreground">{langInfo.translated}/{langInfo.total}</span>
-                                        </div>
-                                    </TableCell>
-                                    <TableCell className="text-right">
-                                        <Button 
-                                            size="sm" 
-                                            variant={targetLanguage === langInfo.code ? 'default' : 'ghost'}
-                                            onClick={() => handleTargetLanguageChange(langInfo.code)}
-                                            disabled={langInfo.code === sourceLanguage}
-                                        >
-                                            {targetLanguage === langInfo.code ? 'Selected' : 'Select'}
-                                        </Button>
-                                    </TableCell>
-                                </TableRow>
-                            ))}
-                        </TableBody>
-                    </Table>
-                </div>
-                 <Button onClick={() => fileInputRef.current?.click()} variant="outline">
-                  <Upload className="mr-2 h-4 w-4" /> Import New File
-                </Button>
-                <input type="file" ref={fileInputRef} onChange={handleFileChange} accept=".xcstrings" className="hidden" />
-            </div>
-
-            <div className="lg:col-span-2">
-              <h3 className="text-lg font-semibold mb-4">Strings for <span className="font-mono text-primary bg-primary/10 px-2 py-1 rounded-md">{targetLanguage}</span></h3>
-              <div className="relative overflow-x-auto rounded-md border">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="w-12">
-                        <Checkbox 
-                          onCheckedChange={handleSelectAll}
-                          checked={selectedKeys.size > 0 && selectedKeys.size === stringsToTranslateCount && stringsToTranslateCount > 0}
-                          disabled={stringsToTranslateCount === 0}
-                          aria-label="Select all rows for translation"
-                        />
-                      </TableHead>
-                      <TableHead>Key</TableHead>
-                      <TableHead>Source ({sourceLanguage})</TableHead>
-                      <TableHead>Target ({targetLanguage})</TableHead>
-                      <TableHead className="text-center w-32">Status</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {strings.length > 0 ? strings.map((s) => (
-                      <TableRow key={s.key} data-state={selectedKeys.has(s.key) ? 'selected' : ''}>
-                        <TableCell>
-                          <Checkbox 
-                              onCheckedChange={(checked) => handleSelectRow(s.key, !!checked)}
-                              checked={selectedKeys.has(s.key)}
-                              disabled={s.status !== 'new' && s.status !== 'untranslated' && s.status !== 'error'}
-                          />
-                        </TableCell>
-                        <TableCell className="font-mono text-xs">{s.key}</TableCell>
-                        <TableCell>{s.sourceValue}</TableCell>
-                        <TableCell className="text-muted-foreground">{s.targetValue}</TableCell>
-                        <TableCell className="text-center">
-                          <StatusBadge status={s.status} />
-                        </TableCell>
-                      </TableRow>
-                    )) : (
-                      <TableRow>
-                        <TableCell colSpan={5} className="text-center h-24 text-muted-foreground">
-                            {targetLanguage ? `No strings found for ${targetLanguage}.` : 'Select a target language to begin.'}
-                        </TableCell>
-                      </TableRow>
+          <div>
+            <div className="flex justify-end mb-4">
+                <Button onClick={handleTranslateSelected} disabled={isPending || selectedCells.length === 0 || !apiKey}>
+                    {isPending ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    ) : (
+                    <Languages className="mr-2 h-4 w-4" />
                     )}
-                  </TableBody>
-                </Table>
-              </div>
+                    Translate {selectedCells.length > 0 ? `${selectedCells.length} ` : ''}Item(s)
+                </Button>
+            </div>
+            <div className="relative overflow-x-auto rounded-md border">
+            <Table className="min-w-full">
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="sticky left-0 bg-card z-10 w-[200px]">Key</TableHead>
+                  <TableHead className="w-[250px]">Comment</TableHead>
+                  <TableHead className="w-[300px]">Source ({sourceLanguage})</TableHead>
+                  {targetLanguages.map(lang => (
+                    <TableHead key={lang} className="w-[300px]">
+                      {lang}
+                    </TableHead>
+                  ))}
+                  <TableHead className="sticky right-0 bg-card z-10 w-[80px] text-center">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {strings.map((s) => (
+                  <TableRow key={s.key}>
+                    <TableCell className="font-mono text-xs sticky left-0 bg-card z-10">{s.key}</TableCell>
+                    <TableCell className="text-xs text-muted-foreground">{s.comment}</TableCell>
+                    <TableCell>{s.sourceValue}</TableCell>
+                    {targetLanguages.map(lang => {
+                        const translation = s.translations[lang];
+                        const isSelected = selectedCells.some(c => c.key === s.key && c.lang === lang);
+                        const canSelect = translation.status === 'new' || translation.status === 'untranslated' || translation.status === 'error';
+                        return (
+                          <TableCell 
+                            key={lang} 
+                            onClick={() => canSelect && handleCellClick(s.key, lang)}
+                            className={`
+                                ${canSelect ? 'cursor-pointer' : ''}
+                                ${isSelected ? 'bg-accent/50' : ''}
+                            `}
+                          >
+                            <div className="flex flex-col gap-2">
+                                <span className="text-muted-foreground">{translation?.value || ''}</span>
+                                <StatusBadge status={translation?.status || 'new'}/>
+                            </div>
+                          </TableCell>
+                        )
+                    })}
+                    <TableCell className="sticky right-0 bg-card z-10">
+                       <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="icon">
+                                    <MoreHorizontal className="h-4 w-4"/>
+                                    <span className="sr-only">Actions</span>
+                                </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                                <DropdownMenuItem onClick={() => setRowStatus(s.key, 'non-translatable')}>
+                                    <XCircle className="mr-2 h-4 w-4"/>
+                                    <span>Mark as Non-Translatable</span>
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => copySourceToAll(s.key)}>
+                                    <Copy className="mr-2 h-4 w-4"/>
+                                    <span>Copy Source to All</span>
+                                </DropdownMenuItem>
+                            </DropdownMenuContent>
+                        </DropdownMenu>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
             </div>
           </div>
         )}
       </CardContent>
-      {strings.length > 0 && (
-        <CardFooter className="flex justify-end">
-          <Button onClick={handleTranslate} disabled={isPending || selectedKeys.size === 0 || !targetLanguage || !apiKey}>
-            {isPending ? (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            ) : (
-              <Languages className="mr-2 h-4 w-4" />
-            )}
-            Translate {selectedKeys.size > 0 ? `${selectedKeys.size} ` : ''}Item(s)
-          </Button>
-        </CardFooter>
-      )}
     </Card>
   );
 }
