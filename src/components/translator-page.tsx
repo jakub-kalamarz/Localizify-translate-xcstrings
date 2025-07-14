@@ -47,6 +47,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
+import { Textarea } from '@/components/ui/textarea';
 
 interface SelectedCell {
   key: string;
@@ -156,10 +157,8 @@ export default function TranslatorPage() {
           } else if(translation.status === 'non-translatable' && s.sourceValue) {
             localizations[lang] = { stringUnit: { state: 'translated', value: s.sourceValue } };
           } else if (hasValue) {
-             // If it has a value but not explicitly translated, keep it
-            if (!localizations[lang]) {
-                localizations[lang] = { stringUnit: { state: 'new', value: translation.value }};
-            }
+             // If it has a value but not explicitly translated, keep it as new
+            localizations[lang] = { stringUnit: { state: 'new', value: translation.value }};
           } else {
             // Remove localization if value is empty
             delete localizations[lang];
@@ -188,6 +187,25 @@ export default function TranslatorPage() {
     URL.revokeObjectURL(url);
     toast({title: "File exported successfully"});
   }
+  
+  const handleTranslationValueChange = (key: string, lang: string, value: string) => {
+    setStrings(currentStrings => 
+      currentStrings.map(s => {
+        if (s.key === key) {
+          const newTranslations = { ...s.translations };
+          if (newTranslations[lang]) {
+            newTranslations[lang].value = value;
+            // If user edits, it's considered translated
+            if (value.trim() !== '') {
+              newTranslations[lang].status = 'translated';
+            }
+          }
+          return { ...s, translations: newTranslations };
+        }
+        return s;
+      })
+    );
+  };
 
   const handleTranslateSelected = () => {
     if (selectedCells.length === 0) {
@@ -410,6 +428,14 @@ export default function TranslatorPage() {
                     </Select>
                 </div>
                 <div className="flex items-center gap-2">
+                     <Select value={selectedModel} onValueChange={setSelectedModel}>
+                        <SelectTrigger className="w-[180px]">
+                            <SelectValue placeholder="Select Model" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="gemini-1.5-flash">Gemini 1.5 Flash</SelectItem>
+                        </SelectContent>
+                    </Select>
                     <Button onClick={handleTranslateSelected} disabled={isPending || selectedCells.length === 0}>
                         {isPending ? (
                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -449,14 +475,24 @@ export default function TranslatorPage() {
                           <TableCell 
                             key={lang} 
                             onClick={() => canSelect && handleCellClick(s.key, lang)}
-                            className={`border-r
+                            className={`border-r align-top
                                 ${canSelect ? 'cursor-pointer' : ''}
-                                ${isSelected ? 'bg-accent/50' : ''}
+                                ${isSelected ? 'bg-blue-100 dark:bg-blue-900/50' : ''}
                             `}
                           >
-                            <div className="flex flex-row items-center justify-between gap-2">
-                                <span className="text-muted-foreground flex-grow">{translation?.value || ''}</span>
-                                <StatusDisplay status={translation?.status || 'new'} value={translation?.value || ''}/>
+                            <div className="flex flex-col gap-2">
+                                <Textarea
+                                  value={translation?.value || ''}
+                                  onChange={(e) => handleTranslationValueChange(s.key, lang, e.target.value)}
+                                  className="min-h-[60px] text-sm flex-grow bg-transparent border-0 ring-0 focus-visible:ring-0 p-0"
+                                  placeholder={canSelect ? 'Click to select for AI translation' : 'Edit translation'}
+                                />
+                                <div className="flex items-center justify-between">
+                                  <span className="text-xs text-muted-foreground">
+                                    {translation?.value?.length || 0} chars
+                                  </span>
+                                  <StatusDisplay status={translation?.status || 'new'} value={translation?.value || ''}/>
+                                </div>
                             </div>
                           </TableCell>
                         )
