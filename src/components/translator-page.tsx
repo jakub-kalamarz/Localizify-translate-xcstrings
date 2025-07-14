@@ -48,6 +48,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
+import { ThemeToggle } from './theme-toggle';
 
 interface SelectedCell {
   key: string;
@@ -264,7 +265,7 @@ export default function TranslatorPage() {
                   changed = true;
               }
           })
-          return changed ? { ...s, translations: newTranslations } : str;
+          return changed ? { ...str, translations: newTranslations } : str;
       }));
 
       toast({ title: 'Translation Complete' });
@@ -390,6 +391,7 @@ export default function TranslatorPage() {
                       </DialogFooter>
                     </DialogContent>
                 </Dialog>
+                <ThemeToggle />
             </div>
         </div>
       </CardHeader>
@@ -476,7 +478,7 @@ export default function TranslatorPage() {
                           <TableCell 
                             key={lang} 
                             onClick={() => canSelect && handleCellClick(s.key, lang)}
-                            className={`border-r align-top
+                            className={`border-r align-top transition-colors
                                 ${canSelect ? 'cursor-pointer' : ''}
                                 ${isSelected ? 'bg-secondary' : ''}
                             `}

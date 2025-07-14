@@ -7,6 +7,7 @@ import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion"
 import { ArrowRight, Bot, FileJson, Languages } from "lucide-react"
+import { ThemeToggle } from "./theme-toggle"
 
 export function LandingPage() {
   return (
@@ -16,7 +17,7 @@ export function LandingPage() {
           <Languages className="h-6 w-6" />
           <span className="sr-only">Localizify</span>
         </Link>
-        <nav className="ml-auto flex gap-4 sm:gap-6">
+        <nav className="ml-auto flex items-center gap-4 sm:gap-6">
           <Link
             href="/translate"
             className="text-sm font-medium hover:underline underline-offset-4"
@@ -24,6 +25,7 @@ export function LandingPage() {
           >
             Translate
           </Link>
+          <ThemeToggle />
         </nav>
       </header>
       <main className="flex-1">
@@ -33,15 +35,15 @@ export function LandingPage() {
           <div className="container px-4 md:px-6 text-center relative z-20">
             <div className="max-w-3xl mx-auto space-y-4">
               <h1 className="text-4xl font-extrabold tracking-tight sm:text-5xl md:text-6xl lg:text-7xl">
-                Go Global in a Flash.
+                Ship Globally, Translate Instantly.
               </h1>
               <p className="text-lg text-muted-foreground md:text-xl">
-                Tired of tedious manual translations? Upload your .xcstrings file and let Localizify's AI do the heavy lifting. Ship your localized iOS, macOS, and visionOS apps faster than ever.
+                Stop the translation nightmare. Drag, drop, and dominate new markets. Localize your iOS, macOS, and visionOS apps in minutes, not months, with the power of AI.
               </p>
               <div>
                 <Button asChild size="lg">
                   <Link href="/translate" prefetch={false}>
-                    Start Translating Now <ArrowRight className="ml-2 h-5 w-5" />
+                    Start Translating for Free <ArrowRight className="ml-2 h-5 w-5" />
                   </Link>
                 </Button>
               </div>
@@ -53,9 +55,9 @@ export function LandingPage() {
             <div className="flex flex-col items-center justify-center space-y-4 text-center">
               <div className="space-y-2">
                 <div className="inline-block rounded-lg bg-muted px-3 py-1 text-sm">Key Features</div>
-                <h2 className="text-3xl font-bold tracking-tighter sm:text-5xl">The Future of App Localization is Here.</h2>
+                <h2 className="text-3xl font-bold tracking-tighter sm:text-5xl">Your Localization Workflow on Autopilot.</h2>
                 <p className="max-w-[900px] text-muted-foreground md:text-xl/relaxed lg:text-base/relaxed xl:text-xl/relaxed">
-                  Localizify is engineered for speed and simplicity. From effortless file handling to brilliant AI translations, we've streamlined every step of your workflow.
+                  Localizify is engineered for maximum efficiency. From seamless file handling to intelligent AI translations, we've automated the tedious parts so you can focus on building great apps.
                 </p>
               </div>
             </div>
