@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useMemo, ChangeEvent, useRef, useEffect, useTransition } from 'react';
-import { Cog, Upload, Languages, Loader2, FileJson, MoreHorizontal, Copy, XCircle, CheckCircle, Download } from 'lucide-react';
+import { Cog, Upload, Languages, Loader2, FileJson, MoreHorizontal, Copy, XCircle, CheckCircle, Download, Search } from 'lucide-react';
 import type { ParsedString, TranslationStatus, LanguageTranslation } from '@/types';
 import { parseXcstrings } from '@/lib/xcstrings-parser';
 import { translateStringsAction } from '@/app/actions';
@@ -37,10 +37,16 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
 
 interface SelectedCell {
   key: string;
@@ -57,6 +63,8 @@ export default function TranslatorPage() {
   const [originalJson, setOriginalJson] = useState<any>(null);
   const [selectedCells, setSelectedCells] = useState<SelectedCell[]>([]);
   const [fileName, setFileName] = useState<string>('Localizable.xcstrings');
+  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [textFilter, setTextFilter] = useState<string>('');
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
@@ -299,6 +307,23 @@ export default function TranslatorPage() {
     
     return null;
   };
+  
+  const filteredStrings = useMemo(() => {
+    return strings.filter(s => {
+        const textMatch = textFilter === '' || 
+                          s.key.toLowerCase().includes(textFilter.toLowerCase()) || 
+                          s.sourceValue.toLowerCase().includes(textFilter.toLowerCase());
+
+        if (statusFilter === 'all') {
+            return textMatch;
+        }
+
+        if (!textMatch) return false;
+
+        // Check if any translation for this key matches the status filter
+        return Object.values(s.translations).some(t => t.status === statusFilter);
+    });
+  }, [strings, statusFilter, textFilter]);
 
   const targetLanguages = useMemo(() => allLanguages.filter(l => l !== sourceLanguage), [allLanguages, sourceLanguage]);
 
@@ -352,7 +377,32 @@ export default function TranslatorPage() {
           </div>
         ) : (
           <div>
-            <div className="flex justify-end mb-4">
+            <div className="flex items-center justify-between mb-4 gap-4">
+                <div className="flex items-center gap-2">
+                    <div className="relative">
+                      <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      <Input 
+                        placeholder="Filter by key or source..." 
+                        value={textFilter}
+                        onChange={(e) => setTextFilter(e.target.value)}
+                        className="pl-8 w-64"
+                      />
+                    </div>
+                     <Select value={statusFilter} onValueChange={setStatusFilter}>
+                      <SelectTrigger className="w-[180px]">
+                        <SelectValue placeholder="Filter by status" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All Statuses</SelectItem>
+                        <SelectItem value="new">New</SelectItem>
+                        <SelectItem value="untranslated">Untranslated</SelectItem>
+                        <SelectItem value="translated">Translated</SelectItem>
+                        <SelectItem value="non-translatable">Non-Translatable</SelectItem>
+                        <SelectItem value="in-progress">In Progress</SelectItem>
+                        <SelectItem value="error">Error</SelectItem>
+                      </SelectContent>
+                    </Select>
+                </div>
                 <Button onClick={handleTranslateSelected} disabled={isPending || selectedCells.length === 0 || !apiKey}>
                     {isPending ? (
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -378,7 +428,7 @@ export default function TranslatorPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {strings.map((s) => (
+                {filteredStrings.map((s) => (
                   <TableRow key={s.key}>
                     <TableCell className="font-mono text-xs sticky left-0 bg-card z-10 border-r">{s.key}</TableCell>
                     <TableCell className="text-xs text-muted-foreground border-r">{s.comment}</TableCell>
