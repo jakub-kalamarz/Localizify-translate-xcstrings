@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useMemo, ChangeEvent, useRef, useEffect, useTransition } from 'react';
-import { Cog, Upload, Languages, Loader2, FileJson, MoreHorizontal, Copy, XCircle, Type } from 'lucide-react';
+import { Cog, Upload, Languages, Loader2, FileJson, MoreHorizontal, Copy, XCircle, CheckCircle } from 'lucide-react';
 import type { ParsedString, TranslationStatus, LanguageTranslation } from '@/types';
 import { parseXcstrings } from '@/lib/xcstrings-parser';
 import { translateStringsAction } from '@/app/actions';
@@ -217,13 +217,15 @@ export default function TranslatorPage() {
     }));
   };
   
-  const copySourceToAll = (key: string) => {
+  const copySourceToAll = (key: string, markAsTranslated: boolean = false) => {
     setStrings(current => current.map(s => {
         if (s.key === key) {
             const newTranslations = { ...s.translations };
             Object.keys(newTranslations).forEach(lang => {
                 newTranslations[lang].value = s.sourceValue;
-                newTranslations[lang].status = 'translated';
+                if (markAsTranslated) {
+                    newTranslations[lang].status = 'translated';
+                }
             });
             return { ...s, translations: newTranslations };
         }
@@ -356,11 +358,15 @@ export default function TranslatorPage() {
                                 </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
+                                <DropdownMenuItem onClick={() => copySourceToAll(s.key, true)}>
+                                    <CheckCircle className="mr-2 h-4 w-4"/>
+                                    <span>Mark as Translated</span>
+                                </DropdownMenuItem>
                                 <DropdownMenuItem onClick={() => setRowStatus(s.key, 'non-translatable')}>
                                     <XCircle className="mr-2 h-4 w-4"/>
                                     <span>Mark as Non-Translatable</span>
                                 </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => copySourceToAll(s.key)}>
+                                <DropdownMenuItem onClick={() => copySourceToAll(s.key, false)}>
                                     <Copy className="mr-2 h-4 w-4"/>
                                     <span>Copy Source to All</span>
                                 </DropdownMenuItem>
