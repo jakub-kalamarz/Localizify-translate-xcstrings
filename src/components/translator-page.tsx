@@ -314,11 +314,17 @@ export default function TranslatorPage() {
                           s.key.toLowerCase().includes(textFilter.toLowerCase()) || 
                           s.sourceValue.toLowerCase().includes(textFilter.toLowerCase());
 
+        if (!textMatch) return false;
+
         if (statusFilter === 'all') {
-            return textMatch;
+            return true;
         }
 
-        if (!textMatch) return false;
+        if (statusFilter === 'untranslated') {
+            return Object.values(s.translations).some(t => 
+                t.status === 'new' || t.status === 'untranslated' || t.status === 'error'
+            );
+        }
 
         // Check if any translation for this key matches the status filter
         return Object.values(s.translations).some(t => t.status === statusFilter);
@@ -394,12 +400,9 @@ export default function TranslatorPage() {
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="all">All Statuses</SelectItem>
-                        <SelectItem value="new">New</SelectItem>
                         <SelectItem value="untranslated">Untranslated</SelectItem>
                         <SelectItem value="translated">Translated</SelectItem>
                         <SelectItem value="non-translatable">Non-Translatable</SelectItem>
-                        <SelectItem value="in-progress">In Progress</SelectItem>
-                        <SelectItem value="error">Error</SelectItem>
                       </SelectContent>
                     </Select>
                 </div>
