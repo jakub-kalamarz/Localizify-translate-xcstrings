@@ -66,7 +66,7 @@ export default function TranslatorPage() {
   const [fileName, setFileName] = useState<string>('Localizable.xcstrings');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [textFilter, setTextFilter] = useState<string>('');
-  const [selectedModel, setSelectedModel] = useState<string>('gemini-1.5-flash');
+  const [selectedModel, setSelectedModel] = useState<string>('gemini-1.5-pro');
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
@@ -429,10 +429,11 @@ export default function TranslatorPage() {
                 </div>
                 <div className="flex items-center gap-2">
                      <Select value={selectedModel} onValueChange={setSelectedModel}>
-                        <SelectTrigger className="w-[180px]">
+                        <SelectTrigger className="w-[220px]">
                             <SelectValue placeholder="Select Model" />
                         </SelectTrigger>
                         <SelectContent>
+                            <SelectItem value="gemini-1.5-pro">Gemini 1.5 Pro</SelectItem>
                             <SelectItem value="gemini-1.5-flash">Gemini 1.5 Flash</SelectItem>
                         </SelectContent>
                     </Select>

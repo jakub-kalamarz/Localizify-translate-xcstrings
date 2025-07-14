@@ -9,11 +9,11 @@
 
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
-import { ModelReference } from 'genkit/model';
-import { gemini15Flash } from '@genkit-ai/googleai';
+import { gemini15Flash, gemini15Pro } from '@genkit-ai/googleai';
 
 const allModels = {
-    'gemini-1.5-flash': gemini15Flash
+    'gemini-1.5-flash': gemini15Flash,
+    'gemini-1.5-pro': gemini15Pro,
 }
 
 const TranslateStringInputSchema = z.object({
@@ -55,7 +55,7 @@ const translateStringFlow = ai.defineFlow(
   },
   async input => {
     const { model, ...promptInput } = input;
-    const selectedModel = model ? allModels[model as keyof typeof allModels] : gemini15Flash;
+    const selectedModel = model ? allModels[model as keyof typeof allModels] : gemini15Pro;
     
     const {output} = await ai.generate({
         prompt: translateStringPrompt.prompt,
