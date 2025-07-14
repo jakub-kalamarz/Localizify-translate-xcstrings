@@ -276,27 +276,27 @@ export default function TranslatorPage() {
     }))
   };
 
-  const StatusDisplay = ({ status }: { status: TranslationStatus }) => {
-    if (status === 'translated') {
-        return (
-            <div className="flex items-center justify-center text-green-600">
-                <CheckCircle className="h-5 w-5" />
-            </div>
-        );
+  const StatusDisplay = ({ status, value }: { status: TranslationStatus, value: string }) => {
+    if (status === 'translated' && value) {
+        return <CheckCircle className="h-5 w-5 text-green-600 shrink-0" />;
     }
 
-    const variant: "secondary" | "destructive" | "outline" = useMemo(() => {
-        switch (status) {
-            case 'new': return 'secondary';
-            case 'untranslated': return 'secondary';
-            case 'non-translatable': return 'outline';
-            case 'in-progress': return 'outline';
-            case 'error': return 'destructive';
-            default: return 'secondary';
-        }
-    }, [status]);
-    const text = status === 'untranslated' ? 'new' : status;
-    return <Badge variant={variant} className="capitalize w-full justify-center">{text}</Badge>;
+    if (status === 'new' || status === 'untranslated' || status === 'non-translatable' || status === 'in-progress' || status === 'error') {
+       const variant: "secondary" | "destructive" | "outline" = useMemo(() => {
+          switch (status) {
+              case 'new': return 'secondary';
+              case 'untranslated': return 'secondary';
+              case 'non-translatable': return 'outline';
+              case 'in-progress': return 'outline';
+              case 'error': return 'destructive';
+              default: return 'secondary';
+          }
+      }, [status]);
+      const text = status === 'untranslated' ? 'new' : status;
+      return <Badge variant={variant} className="capitalize">{text}</Badge>;
+    }
+    
+    return null;
   };
 
   const targetLanguages = useMemo(() => allLanguages.filter(l => l !== sourceLanguage), [allLanguages, sourceLanguage]);
@@ -395,11 +395,9 @@ export default function TranslatorPage() {
                                 ${isSelected ? 'bg-accent/50' : ''}
                             `}
                           >
-                            <div className="flex flex-col gap-2 h-full justify-between">
-                                <span className="text-muted-foreground">{translation?.value || ''}</span>
-                                <div className="h-6 flex items-center justify-center">
-                                    <StatusDisplay status={translation?.status || 'new'}/>
-                                </div>
+                            <div className="flex items-center justify-between gap-2">
+                                <span className="text-muted-foreground flex-grow">{translation?.value || ''}</span>
+                                <StatusDisplay status={translation?.status || 'new'} value={translation?.value || ''}/>
                             </div>
                           </TableCell>
                         )
