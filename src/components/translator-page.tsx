@@ -47,7 +47,8 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { ModelReference } from 'genkit/model';
+import { gemini15Flash } from 'genkit/models';
 
 interface SelectedCell {
   key: string;
@@ -66,6 +67,7 @@ export default function TranslatorPage() {
   const [fileName, setFileName] = useState<string>('Localizable.xcstrings');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [textFilter, setTextFilter] = useState<string>('');
+  const [selectedModel, setSelectedModel] = useState<ModelReference<any>>(gemini15Flash);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
@@ -194,6 +196,7 @@ export default function TranslatorPage() {
       toast({ variant: 'destructive', title: 'No cells selected', description: 'Click on a cell to select it for translation.'});
       return;
     }
+
      if (!geminiApiKey) {
       toast({ variant: 'destructive', title: 'API Key Missing', description: `Please set your Gemini API key in Settings.`});
       return;
@@ -225,7 +228,7 @@ export default function TranslatorPage() {
       }, {} as Record<string, {key: string; text: string}[]>);
 
       const allPromises = Object.entries(translationsByLang).map(([lang, aStrings]) => 
-          translateStringsAction(aStrings, sourceLanguage, lang)
+          translateStringsAction(aStrings, sourceLanguage, lang, selectedModel)
       );
 
       const allResults = await Promise.all(allPromises);
@@ -357,12 +360,14 @@ export default function TranslatorPage() {
                       <DialogHeader>
                           <DialogTitle>API Key Settings</DialogTitle>
                           <DialogDescription>
-                              Your API key is stored in your browser&apos;s local storage.
+                              Your API keys are stored in your browser&apos;s local storage.
                           </DialogDescription>
                       </DialogHeader>
                       <div className="grid gap-4 py-4">
-                          <Label htmlFor="geminiApiKey">Gemini API Key</Label>
-                          <Input id="geminiApiKey" type="password" value={geminiApiKey} onChange={e => setGeminiApiKey(e.target.value)} />
+                          <div className="grid gap-2">
+                             <Label htmlFor="geminiApiKey">Gemini API Key</Label>
+                             <Input id="geminiApiKey" type="password" value={geminiApiKey} onChange={e => setGeminiApiKey(e.target.value)} />
+                          </div>
                       </div>
                       <DialogFooter>
                           <Button onClick={handleSaveApiKeys}>Save Key</Button>

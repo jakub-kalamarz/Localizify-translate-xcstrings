@@ -10,6 +10,7 @@
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
 import { ModelReference } from 'genkit/model';
+import { gemini15Flash } from 'genkit/models';
 
 const TranslateStringInputSchema = z.object({
   text: z.string().describe('The text to translate.'),
@@ -52,7 +53,7 @@ const translateStringFlow = ai.defineFlow(
     const { model, ...promptInput } = input;
     const {output} = await ai.generate({
         prompt: translateStringPrompt.prompt,
-        model: model,
+        model: model || gemini15Flash,
         input: promptInput,
         output: {
             schema: translateStringPrompt.output.schema
