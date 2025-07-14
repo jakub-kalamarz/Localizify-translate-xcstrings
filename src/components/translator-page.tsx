@@ -338,7 +338,7 @@ export default function TranslatorPage() {
       <CardHeader>
         <div className="flex justify-between items-start">
             <div>
-                <CardTitle className="text-2xl font-bold">XCStrings Translator</CardTitle>
+                <CardTitle className="text-2xl font-bold">Localizify</CardTitle>
                 <CardDescription>Import, view, and translate .xcstrings files with AI. Click on cells to select them for translation.</CardDescription>
             </div>
             <div className="flex items-center gap-2">
