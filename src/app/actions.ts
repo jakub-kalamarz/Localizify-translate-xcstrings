@@ -17,7 +17,8 @@ export async function translateStringsAction(
   stringsToTranslate: TranslationRequest[],
   sourceLanguage: string,
   targetLanguage: string,
-  model?: string,
+  model: string,
+  apiKey: string,
 ): Promise<TranslationResult[]> {
   const translations = await Promise.all(
     stringsToTranslate.map(async (str) => {
@@ -30,6 +31,7 @@ export async function translateStringsAction(
           sourceLanguage,
           targetLanguage,
           model,
+          apiKey
         });
         return { key: str.key, translatedText: result.translatedText };
       } catch (error) {

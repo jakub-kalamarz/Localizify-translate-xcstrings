@@ -246,7 +246,7 @@ export default function TranslatorPage() {
       }, {} as Record<string, {key: string; text: string}[]>);
 
       const allPromises = Object.entries(translationsByLang).map(([lang, aStrings]) => 
-          translateStringsAction(aStrings, sourceLanguage, lang, selectedModel)
+          translateStringsAction(aStrings, sourceLanguage, lang, selectedModel, geminiApiKey)
       );
 
       const allResults = await Promise.all(allPromises);

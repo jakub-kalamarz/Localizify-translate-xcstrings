@@ -10,6 +10,7 @@
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
 import { googleAI } from '@genkit-ai/googleai';
+import { configureGoogleAi } from '../genkit';
 
 // Referencing models
 const model = googleAI.model('gemini-2.5-flash');
@@ -25,6 +26,7 @@ const TranslateStringInputSchema = z.object({
   sourceLanguage: z.string().describe('The source language of the text.'),
   targetLanguage: z.string().describe('The target language to translate to.'),
   model: z.string().optional().describe('The model to use for translation.'),
+  apiKey: z.string().optional().describe('The API key for the translation service.'),
 });
 export type TranslateStringInput = z.infer<typeof TranslateStringInputSchema>;
 
@@ -58,7 +60,10 @@ const translateStringFlow = ai.defineFlow(
     outputSchema: TranslateStringOutputSchema,
   },
   async input => {
-    const { model, ...promptInput } = input;
+    const { model, apiKey, ...promptInput } = input;
+    if (apiKey) {
+        configureGoogleAi(apiKey);
+    }
     const selectedModel = model ? allModels[model as keyof typeof allModels] : modelPro;
     
     const {output} = await ai.generate({
