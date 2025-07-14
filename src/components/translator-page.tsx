@@ -40,6 +40,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
+import { Separator } from '@/components/ui/separator';
 
 interface SelectedCell {
   key: string;
@@ -365,11 +366,11 @@ export default function TranslatorPage() {
             <Table className="min-w-full">
               <TableHeader>
                 <TableRow>
-                  <TableHead className="sticky left-0 bg-card z-10 w-[200px]">Key</TableHead>
-                  <TableHead className="w-[250px]">Comment</TableHead>
-                  <TableHead className="w-[300px]">Source ({sourceLanguage})</TableHead>
+                  <TableHead className="sticky left-0 bg-card z-10 w-[200px] border-r">Key</TableHead>
+                  <TableHead className="w-[250px] border-r">Comment</TableHead>
+                  <TableHead className="w-[300px] border-r">Source ({sourceLanguage})</TableHead>
                   {targetLanguages.map(lang => (
-                    <TableHead key={lang} className="w-[300px]">
+                    <TableHead key={lang} className="w-[300px] border-r">
                       {lang}
                     </TableHead>
                   ))}
@@ -379,9 +380,9 @@ export default function TranslatorPage() {
               <TableBody>
                 {strings.map((s) => (
                   <TableRow key={s.key}>
-                    <TableCell className="font-mono text-xs sticky left-0 bg-card z-10">{s.key}</TableCell>
-                    <TableCell className="text-xs text-muted-foreground">{s.comment}</TableCell>
-                    <TableCell>{s.sourceValue}</TableCell>
+                    <TableCell className="font-mono text-xs sticky left-0 bg-card z-10 border-r">{s.key}</TableCell>
+                    <TableCell className="text-xs text-muted-foreground border-r">{s.comment}</TableCell>
+                    <TableCell className="border-r">{s.sourceValue}</TableCell>
                     {targetLanguages.map(lang => {
                         const translation = s.translations[lang];
                         const isSelected = selectedCells.some(c => c.key === s.key && c.lang === lang);
@@ -390,12 +391,12 @@ export default function TranslatorPage() {
                           <TableCell 
                             key={lang} 
                             onClick={() => canSelect && handleCellClick(s.key, lang)}
-                            className={`
+                            className={`border-r
                                 ${canSelect ? 'cursor-pointer' : ''}
                                 ${isSelected ? 'bg-accent/50' : ''}
                             `}
                           >
-                            <div className="flex items-center justify-between gap-2">
+                            <div className="flex flex-row items-center justify-between gap-2">
                                 <span className="text-muted-foreground flex-grow">{translation?.value || ''}</span>
                                 <StatusDisplay status={translation?.status || 'new'} value={translation?.value || ''}/>
                             </div>
