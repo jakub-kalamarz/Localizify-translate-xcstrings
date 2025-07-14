@@ -477,7 +477,7 @@ export default function TranslatorPage() {
                             onClick={() => canSelect && handleCellClick(s.key, lang)}
                             className={`border-r align-top
                                 ${canSelect ? 'cursor-pointer' : ''}
-                                ${isSelected ? 'bg-blue-100 dark:bg-blue-900/50' : ''}
+                                ${isSelected ? 'bg-secondary' : ''}
                             `}
                           >
                             <div className="flex flex-col gap-2">
