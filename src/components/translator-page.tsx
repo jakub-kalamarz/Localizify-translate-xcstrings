@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useMemo, ChangeEvent, useRef, useEffect, useTransition } from 'react';
-import { Cog, Upload, Languages, Loader2, FileJson, MoreHorizontal, Copy, XCircle, CheckCircle } from 'lucide-react';
+import { Cog, Upload, Languages, Loader2, FileJson, MoreHorizontal, Copy, XCircle, CheckCircle, Download } from 'lucide-react';
 import type { ParsedString, TranslationStatus, LanguageTranslation } from '@/types';
 import { parseXcstrings } from '@/lib/xcstrings-parser';
 import { translateStringsAction } from '@/app/actions';
@@ -55,6 +55,7 @@ export default function TranslatorPage() {
   const [isPending, startTransition] = useTransition();
   const [originalJson, setOriginalJson] = useState<any>(null);
   const [selectedCells, setSelectedCells] = useState<SelectedCell[]>([]);
+  const [fileName, setFileName] = useState<string>('Localizable.xcstrings');
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
@@ -69,6 +70,8 @@ export default function TranslatorPage() {
   const handleFileChange = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
+    
+    setFileName(file.name);
 
     const reader = new FileReader();
     reader.onload = (e) => {
@@ -116,6 +119,67 @@ export default function TranslatorPage() {
     setApiKeyDialogOpen(false);
   };
   
+  const updateOriginalJsonWithCurrentState = () => {
+    if (!originalJson) return null;
+
+    const newJson = JSON.parse(JSON.stringify(originalJson));
+    newJson.sourceLanguage = sourceLanguage;
+    const languages = new Set<string>([sourceLanguage]);
+
+    strings.forEach(s => {
+      if (!newJson.strings[s.key]) {
+        newJson.strings[s.key] = {
+          localizations: {},
+        };
+      }
+      if(s.comment) {
+        newJson.strings[s.key].comment = s.comment;
+      }
+      
+      const localizations = newJson.strings[s.key].localizations || {};
+
+      Object.entries(s.translations).forEach(([lang, translation]) => {
+          languages.add(lang);
+          const hasValue = translation.value && translation.value.trim() !== '';
+
+          if (translation.status === 'translated' && hasValue) {
+            localizations[lang] = { stringUnit: { state: 'translated', value: translation.value } };
+          } else if(translation.status === 'non-translatable' && s.sourceValue) {
+            localizations[lang] = { stringUnit: { state: 'translated', value: s.sourceValue } };
+          } else if (hasValue) {
+             // If it has a value but not explicitly translated, keep it
+            if (!localizations[lang]) {
+                localizations[lang] = { stringUnit: { state: 'new', value: translation.value }};
+            }
+          } else {
+            // Remove localization if value is empty
+            delete localizations[lang];
+          }
+      });
+      newJson.strings[s.key].localizations = localizations;
+    });
+
+    return newJson;
+  }
+  
+  const handleExport = () => {
+    const updatedJson = updateOriginalJsonWithCurrentState();
+    if (!updatedJson) {
+        toast({variant: 'destructive', title: "Nothing to export", description: "Load a file first."});
+        return;
+    };
+    const blob = new Blob([JSON.stringify(updatedJson, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = fileName;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    toast({title: "File exported successfully"});
+  }
+
   const handleTranslateSelected = () => {
     if (selectedCells.length === 0) {
       toast({ variant: 'destructive', title: 'No cells selected', description: 'Click on a cell to select it for translation.'});
@@ -158,8 +222,7 @@ export default function TranslatorPage() {
       const allResults = await Promise.all(allPromises);
 
       const flatResults = allResults.flat();
-      const resultsMap = new Map(flatResults.map(r => [`${r.key}-${r.translatedText}`, r]));
-
+      
       setStrings(current => current.map(str => {
           const newTranslations = { ...str.translations };
           let changed = false;
@@ -173,28 +236,8 @@ export default function TranslatorPage() {
                   changed = true;
               }
           })
-          return changed ? { ...str, translations: newTranslations } : str;
+          return changed ? { ...s, translations: newTranslations } : str;
       }));
-
-      // Update original JSON
-       if (originalJson) {
-         const newJson = JSON.parse(JSON.stringify(originalJson));
-         flatResults.forEach(result => {
-           const lang = Object.keys(translationsByLang).find(l => translationsByLang[l].some(s => s.key === result.key));
-           if (lang && !result.error && newJson.strings[result.key]) {
-             if (!newJson.strings[result.key].localizations) {
-               newJson.strings[result.key].localizations = {};
-             }
-             newJson.strings[result.key].localizations[lang] = {
-               stringUnit: {
-                 state: 'translated',
-                 value: result.translatedText,
-               }
-             };
-           }
-         });
-         setOriginalJson(newJson);
-       }
 
       toast({ title: 'Translation Complete' });
       setSelectedCells([]);
@@ -264,6 +307,9 @@ export default function TranslatorPage() {
                   <Upload className="mr-2 h-4 w-4" /> Import File
                 </Button>
                 <input type="file" ref={fileInputRef} onChange={handleFileChange} accept=".xcstrings" className="hidden" />
+                 <Button onClick={handleExport} variant="outline" disabled={strings.length === 0}>
+                    <Download className="mr-2 h-4 w-4" /> Export File
+                </Button>
                  <Dialog open={isApiKeyDialogOpen} onOpenChange={setApiKeyDialogOpen}>
                     <DialogTrigger asChild>
                     <Button variant="outline" size="icon"><Cog className="h-4 w-4" /></Button>
