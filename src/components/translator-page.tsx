@@ -276,10 +276,17 @@ export default function TranslatorPage() {
     }))
   };
 
-  const StatusBadge = ({ status }: { status: TranslationStatus }) => {
-    const variant: "default" | "secondary" | "destructive" | "outline" = useMemo(() => {
+  const StatusDisplay = ({ status }: { status: TranslationStatus }) => {
+    if (status === 'translated') {
+        return (
+            <div className="flex items-center justify-center text-green-600">
+                <CheckCircle className="h-5 w-5" />
+            </div>
+        );
+    }
+
+    const variant: "secondary" | "destructive" | "outline" = useMemo(() => {
         switch (status) {
-            case 'translated': return 'default';
             case 'new': return 'secondary';
             case 'untranslated': return 'secondary';
             case 'non-translatable': return 'outline';
@@ -388,9 +395,11 @@ export default function TranslatorPage() {
                                 ${isSelected ? 'bg-accent/50' : ''}
                             `}
                           >
-                            <div className="flex flex-col gap-2">
+                            <div className="flex flex-col gap-2 h-full justify-between">
                                 <span className="text-muted-foreground">{translation?.value || ''}</span>
-                                <StatusBadge status={translation?.status || 'new'}/>
+                                <div className="h-6 flex items-center justify-center">
+                                    <StatusDisplay status={translation?.status || 'new'}/>
+                                </div>
                             </div>
                           </TableCell>
                         )
