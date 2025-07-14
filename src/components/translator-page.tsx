@@ -47,6 +47,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 interface SelectedCell {
   key: string;
@@ -57,7 +58,7 @@ export default function TranslatorPage() {
   const [strings, setStrings] = useState<ParsedString[]>([]);
   const [sourceLanguage, setSourceLanguage] = useState<string>('');
   const [allLanguages, setAllLanguages] = useState<string[]>([]);
-  const [apiKey, setApiKey] = useState<string>('');
+  const [geminiApiKey, setGeminiApiKey] = useState<string>('');
   const [isApiKeyDialogOpen, setApiKeyDialogOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
   const [originalJson, setOriginalJson] = useState<any>(null);
@@ -70,9 +71,9 @@ export default function TranslatorPage() {
   const { toast } = useToast();
 
   useEffect(() => {
-    const storedApiKey = localStorage.getItem('gemini_api_key');
-    if (storedApiKey) {
-      setApiKey(storedApiKey);
+    const storedGeminiKey = localStorage.getItem('gemini_api_key');
+    if (storedGeminiKey) {
+      setGeminiApiKey(storedGeminiKey);
     }
   }, []);
 
@@ -121,9 +122,8 @@ export default function TranslatorPage() {
       }
   }
 
-  const handleSaveApiKey = (newApiKey: string) => {
-    setApiKey(newApiKey);
-    localStorage.setItem('gemini_api_key', newApiKey);
+  const handleSaveApiKeys = () => {
+    localStorage.setItem('gemini_api_key', geminiApiKey);
     toast({ title: 'API Key saved successfully.' });
     setApiKeyDialogOpen(false);
   };
@@ -194,8 +194,8 @@ export default function TranslatorPage() {
       toast({ variant: 'destructive', title: 'No cells selected', description: 'Click on a cell to select it for translation.'});
       return;
     }
-     if (!apiKey) {
-      toast({ variant: 'destructive', title: 'API Key Missing', description: 'Please set your Gemini API key in Settings.'});
+     if (!geminiApiKey) {
+      toast({ variant: 'destructive', title: 'API Key Missing', description: `Please set your Gemini API key in Settings.`});
       return;
     }
 
@@ -354,19 +354,19 @@ export default function TranslatorPage() {
                     <Button variant="outline" size="icon"><Cog className="h-4 w-4" /></Button>
                     </DialogTrigger>
                     <DialogContent>
-                    <DialogHeader>
-                        <DialogTitle>API Key Settings</DialogTitle>
-                        <DialogDescription>
-                        Enter your Gemini API key. This is stored securely in your browser&apos;s local storage and never sent to our servers.
-                        </DialogDescription>
-                    </DialogHeader>
-                    <div className="grid gap-4 py-4">
-                        <Label htmlFor="apiKey">Gemini API Key</Label>
-                        <Input id="apiKey" type="password" defaultValue={apiKey} onChange={e => setApiKey(e.target.value)} />
-                    </div>
-                    <DialogFooter>
-                        <Button onClick={() => handleSaveApiKey(apiKey)}>Save Key</Button>
-                    </DialogFooter>
+                      <DialogHeader>
+                          <DialogTitle>API Key Settings</DialogTitle>
+                          <DialogDescription>
+                              Your API key is stored in your browser&apos;s local storage.
+                          </DialogDescription>
+                      </DialogHeader>
+                      <div className="grid gap-4 py-4">
+                          <Label htmlFor="geminiApiKey">Gemini API Key</Label>
+                          <Input id="geminiApiKey" type="password" value={geminiApiKey} onChange={e => setGeminiApiKey(e.target.value)} />
+                      </div>
+                      <DialogFooter>
+                          <Button onClick={handleSaveApiKeys}>Save Key</Button>
+                      </DialogFooter>
                     </DialogContent>
                 </Dialog>
             </div>
@@ -406,14 +406,16 @@ export default function TranslatorPage() {
                       </SelectContent>
                     </Select>
                 </div>
-                <Button onClick={handleTranslateSelected} disabled={isPending || selectedCells.length === 0 || !apiKey}>
-                    {isPending ? (
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    ) : (
-                    <Languages className="mr-2 h-4 w-4" />
-                    )}
-                    Translate {selectedCells.length > 0 ? `${selectedCells.length} ` : ''}Item(s)
-                </Button>
+                <div className="flex items-center gap-2">
+                    <Button onClick={handleTranslateSelected} disabled={isPending || selectedCells.length === 0}>
+                        {isPending ? (
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        ) : (
+                        <Languages className="mr-2 h-4 w-4" />
+                        )}
+                        Translate {selectedCells.length > 0 ? `${selectedCells.length} ` : ''}Item(s)
+                    </Button>
+                </div>
             </div>
             <div className="relative overflow-x-auto rounded-md border">
             <Table className="min-w-full">

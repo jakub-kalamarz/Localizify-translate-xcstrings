@@ -1,6 +1,7 @@
 'use server';
 
 import { translateString } from '@/ai/flows/translate-strings';
+import { ModelReference } from 'genkit/model';
 
 interface TranslationRequest {
     key: string;
@@ -16,7 +17,8 @@ interface TranslationResult {
 export async function translateStringsAction(
   stringsToTranslate: TranslationRequest[],
   sourceLanguage: string,
-  targetLanguage: string
+  targetLanguage: string,
+  model?: ModelReference<any>,
 ): Promise<TranslationResult[]> {
   const translations = await Promise.all(
     stringsToTranslate.map(async (str) => {
@@ -28,6 +30,7 @@ export async function translateStringsAction(
           text: str.text,
           sourceLanguage,
           targetLanguage,
+          model,
         });
         return { key: str.key, translatedText: result.translatedText };
       } catch (error) {
