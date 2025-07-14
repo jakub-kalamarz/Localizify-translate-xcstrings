@@ -1,5 +1,7 @@
 import type {Config} from 'tailwindcss';
 
+const { fontFamily } = require("tailwindcss/defaultTheme")
+
 export default {
   darkMode: ['class'],
   content: [
@@ -79,7 +81,7 @@ export default {
         'accordion-up': 'accordion-up 0.2s ease-out',
       },
       fontFamily: {
-        body: ['Inter', 'sans-serif'],
+        sans: ["var(--font-sans)", ...fontFamily.sans],
       },
     },
   },
