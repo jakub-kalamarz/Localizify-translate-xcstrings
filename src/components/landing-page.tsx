@@ -33,16 +33,15 @@ export function LandingPage() {
           <div className="container px-4 md:px-6 text-center relative z-20">
             <div className="max-w-3xl mx-auto space-y-4">
               <h1 className="text-4xl font-extrabold tracking-tight sm:text-5xl md:text-6xl lg:text-7xl">
-                Translate Your Xcode Strings with AI
+                Go Global in a Flash.
               </h1>
               <p className="text-lg text-muted-foreground md:text-xl">
-                Effortlessly upload your .xcstrings file, and let our AI handle the translations. A simple, fast, and
-                developer-friendly way to localize your iOS, macOS, and visionOS apps.
+                Tired of tedious manual translations? Upload your .xcstrings file and let Localizify's AI do the heavy lifting. Ship your localized iOS, macOS, and visionOS apps faster than ever.
               </p>
               <div>
                 <Button asChild size="lg">
                   <Link href="/translate" prefetch={false}>
-                    Get Started <ArrowRight className="ml-2 h-5 w-5" />
+                    Start Translating Now <ArrowRight className="ml-2 h-5 w-5" />
                   </Link>
                 </Button>
               </div>
@@ -54,9 +53,9 @@ export function LandingPage() {
             <div className="flex flex-col items-center justify-center space-y-4 text-center">
               <div className="space-y-2">
                 <div className="inline-block rounded-lg bg-muted px-3 py-1 text-sm">Key Features</div>
-                <h2 className="text-3xl font-bold tracking-tighter sm:text-5xl">Streamline Your Localization Workflow</h2>
+                <h2 className="text-3xl font-bold tracking-tighter sm:text-5xl">The Future of App Localization is Here.</h2>
                 <p className="max-w-[900px] text-muted-foreground md:text-xl/relaxed lg:text-base/relaxed xl:text-xl/relaxed">
-                  Our translator is built to make your life easier. From file import to AI-powered translation, every step is optimized for speed and simplicity.
+                  Localizify is engineered for speed and simplicity. From effortless file handling to brilliant AI translations, we've streamlined every step of your workflow.
                 </p>
               </div>
             </div>
@@ -65,27 +64,27 @@ export function LandingPage() {
                 <div className="flex justify-center">
                   <FileJson className="h-10 w-10 mb-2" />
                 </div>
-                <h3 className="text-lg font-bold">Easy File Handling</h3>
+                <h3 className="text-lg font-bold">Instant File Parsing</h3>
                 <p className="text-sm text-muted-foreground">
-                  Import your .xcstrings file with a single click. View all your keys and existing translations in a clean, organized table.
+                  Just drag and drop. Instantly see your keys and translations laid out in a clean, comprehensive table. No setup required.
                 </p>
               </div>
               <div className="grid gap-1 text-center">
                 <div className="flex justify-center">
                     <Bot className="h-10 w-10 mb-2" />
                 </div>
-                <h3 className="text-lg font-bold">AI-Powered Translation</h3>
+                <h3 className="text-lg font-bold">Blazing-Fast AI Translations</h3>
                 <p className="text-sm text-muted-foreground">
-                  Leverage the power of Google's Gemini to automatically translate new or untranslated entries into any language you choose.
+                  Harness the power of Google Gemini to get accurate, context-aware translations for dozens of languages in seconds, not hours.
                 </p>
               </div>
               <div className="grid gap-1 text-center">
                 <div className="flex justify-center">
                     <Languages className="h-10 w-10 mb-2" />
                 </div>
-                <h3 className="text-lg font-bold">Side-by-Side View</h3>
+                <h3 className="text-lg font-bold">Effortless Comparison</h3>
                 <p className="text-sm text-muted-foreground">
-                  See all languages in columns next to each other, making it easy to compare translations and spot inconsistencies.
+                  Our multi-language column view makes it a breeze to compare translations, ensuring consistency and quality across your app.
                 </p>
               </div>
             </div>
@@ -137,16 +136,16 @@ export function LandingPage() {
           <div className="container grid items-center justify-center gap-4 px-4 text-center md:px-6">
             <div className="space-y-3">
               <h2 className="text-3xl font-bold tracking-tighter md:text-4xl/tight">
-                Ready to Simplify Your Localization?
+                Ready to Revolutionize Your Workflow?
               </h2>
               <p className="mx-auto max-w-[600px] text-muted-foreground md:text-xl/relaxed lg:text-base/relaxed xl:text-xl/relaxed">
-                Stop juggling files and manual translations. Try it now and see how much time you can save.
+                Leave manual translations in the past. Try Localizify now and reclaim your time.
               </p>
             </div>
             <div className="mx-auto w-full max-w-sm space-y-2">
                <Button asChild size="lg">
                   <Link href="/translate" prefetch={false}>
-                    Translate My Strings
+                    Localize My App for Free
                   </Link>
                 </Button>
             </div>
