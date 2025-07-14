@@ -66,7 +66,7 @@ export default function TranslatorPage() {
   const [fileName, setFileName] = useState<string>('Localizable.xcstrings');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [textFilter, setTextFilter] = useState<string>('');
-  const [selectedModel, setSelectedModel] = useState<string>('gemini-1.5-pro');
+  const [selectedModel, setSelectedModel] = useState<string>('geminiPro');
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
@@ -433,8 +433,8 @@ export default function TranslatorPage() {
                             <SelectValue placeholder="Select Model" />
                         </SelectTrigger>
                         <SelectContent>
-                            <SelectItem value="gemini-1.5-pro">Gemini 1.5 Pro</SelectItem>
-                            <SelectItem value="gemini-1.5-flash">Gemini 1.5 Flash</SelectItem>
+                            <SelectItem value="geminiPro">Gemini 2.5 Pro</SelectItem>
+                            <SelectItem value="geminiLite">Gemini 2.5 Flash</SelectItem>
                         </SelectContent>
                     </Select>
                     <Button onClick={handleTranslateSelected} disabled={isPending || selectedCells.length === 0}>
