@@ -2,7 +2,7 @@
 'use client';
 
 import { useState, useMemo, ChangeEvent, useRef, useEffect, useTransition } from 'react';
-import { Cog, Upload, Languages, Loader2, FileJson, MoreHorizontal, Copy, XCircle, CheckCircle, Download, Search } from 'lucide-react';
+import { Cog, Upload, Languages, Loader2, FileJson, MoreHorizontal, Copy, XCircle, CheckCircle, Download, Search, PlusCircle } from 'lucide-react';
 import type { ParsedString, TranslationStatus, LanguageTranslation } from '@/types';
 import { parseXcstrings } from '@/lib/xcstrings-parser';
 import { translateStringsAction } from '@/app/actions';
@@ -62,6 +62,8 @@ export default function TranslatorPage() {
   const [allLanguages, setAllLanguages] = useState<string[]>([]);
   const [geminiApiKey, setGeminiApiKey] = useState<string>('');
   const [isApiKeyDialogOpen, setApiKeyDialogOpen] = useState(false);
+  const [isAddLangDialogOpen, setAddLangDialogOpen] = useState(false);
+  const [newLanguageCode, setNewLanguageCode] = useState('');
   const [isPending, startTransition] = useTransition();
   const [originalJson, setOriginalJson] = useState<any>(null);
   const [selectedCells, setSelectedCells] = useState<SelectedCell[]>([]);
@@ -306,6 +308,32 @@ export default function TranslatorPage() {
     }))
   };
 
+  const handleAddNewLanguage = () => {
+    const code = newLanguageCode.trim().toLowerCase();
+    if (!code) {
+      toast({ variant: 'destructive', title: 'Language code cannot be empty.' });
+      return;
+    }
+    if (allLanguages.includes(code)) {
+      toast({ variant: 'destructive', title: 'Language already exists.' });
+      return;
+    }
+    
+    setAllLanguages(prev => [...prev, code].sort());
+    
+    setStrings(prevStrings => prevStrings.map(s => ({
+      ...s,
+      translations: {
+        ...s.translations,
+        [code]: { value: '', status: 'new' }
+      }
+    })));
+
+    toast({ title: `Language "${code}" added successfully.` });
+    setNewLanguageCode('');
+    setAddLangDialogOpen(false);
+  }
+
   const StatusDisplay = ({ status, value }: { status: TranslationStatus, value: string }) => {
     if (status === 'translated' && value) {
         return <CheckCircle className="h-5 w-5 text-green-600 shrink-0" />;
@@ -352,7 +380,7 @@ export default function TranslatorPage() {
     });
   }, [strings, statusFilter, textFilter]);
 
-  const targetLanguages = useMemo(() => allLanguages.filter(l => l !== sourceLanguage), [allLanguages, sourceLanguage]);
+  const targetLanguages = useMemo(() => allLanguages.filter(l => l !== sourceLanguage).sort(), [allLanguages, sourceLanguage]);
 
   return (
     <Card className="w-full max-w-[95vw] mx-auto shadow-lg">
@@ -370,6 +398,35 @@ export default function TranslatorPage() {
                  <Button onClick={handleExport} variant="outline" disabled={strings.length === 0}>
                     <Download className="mr-2 h-4 w-4" /> Export File
                 </Button>
+                 <Dialog open={isAddLangDialogOpen} onOpenChange={setAddLangDialogOpen}>
+                  <DialogTrigger asChild>
+                    <Button variant="outline" disabled={strings.length === 0}>
+                      <PlusCircle className="mr-2 h-4 w-4" /> Add Language
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Add New Language</DialogTitle>
+                      <DialogDescription>
+                        Enter the language code (e.g., "fr", "es", "de") for the new language you want to add.
+                      </DialogDescription>
+                    </DialogHeader>
+                    <div className="grid gap-4 py-4">
+                      <div className="grid gap-2">
+                        <Label htmlFor="lang-code">Language Code</Label>
+                        <Input 
+                          id="lang-code" 
+                          value={newLanguageCode} 
+                          onChange={e => setNewLanguageCode(e.target.value)} 
+                          placeholder="e.g. fr-CA"
+                        />
+                      </div>
+                    </div>
+                    <DialogFooter>
+                      <Button onClick={handleAddNewLanguage}>Add Language</Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
                  <Dialog open={isApiKeyDialogOpen} onOpenChange={setApiKeyDialogOpen}>
                     <DialogTrigger asChild>
                     <Button variant="outline" size="icon"><Cog className="h-4 w-4" /></Button>
@@ -536,3 +593,5 @@ export default function TranslatorPage() {
     </Card>
   );
 }
+
+    
