@@ -1,27 +1,35 @@
 # Localizify
 
-A modern, AI-powered localization and translation tool built with Next.js and Firebase. Localizify helps developers and teams manage their app translations efficiently using AI translation services.
+A modern, AI-powered localization tool that solves the complexity of managing translations for developers and teams. Transform your manual translation workflow into an intelligent, efficient process.
 
-## Features
+## Problems We Solve
 
-- 🌍 **Multi-language Support**: Easily manage translations for multiple languages
-- 🤖 **AI-Powered Translation**: Uses OpenAI and Google Gemini for high-quality translations
-- 📁 **File Upload**: Import translation files (JSON, CSV, XCStrings)
-- 🔄 **Batch Translation**: Translate multiple strings at once
-- 🎨 **Dark/Light Theme**: Modern UI with theme switching
-- 💾 **Translation Cache**: Intelligent caching to reduce API calls
-- ⚡ **Real-time Progress**: Live progress tracking for translations
-- 🔍 **Smart Search**: Find and filter translations quickly
-- 📱 **Responsive Design**: Works on desktop and mobile devices
+### 🎯 **Manual Translation Chaos**
+Stop juggling multiple translation files, spreadsheets, and manual processes. Localizify centralizes all your translations in one intuitive interface.
 
-## Tech Stack
+### 🔄 **Inconsistent Translation Quality**
+Eliminate inconsistent translations across your app. Our AI-powered system with contextual understanding ensures coherent, professional translations that maintain your brand voice.
 
-- **Frontend**: Next.js 15, React 18, TypeScript
-- **UI**: Tailwind CSS, Radix UI, Lucide Icons
-- **AI/ML**: OpenAI GPT, Google Gemini via Firebase Genkit
-- **Backend**: Firebase (Authentication, Database)
-- **State Management**: React Hooks, Local Storage
-- **Styling**: Tailwind CSS, CSS Variables for theming
+### ⏱️ **Time-Consuming Translation Workflows**
+Transform hours of manual work into minutes. Batch translate hundreds of strings simultaneously while maintaining quality and context.
+
+### 💸 **Expensive Translation Services**
+Reduce translation costs by up to 90% compared to traditional translation services. Use OpenAI's powerful models with intelligent caching to minimize API calls.
+
+### 🔍 **Lost Translation Context**
+Never lose important context again. Provide custom application context to ensure translations are accurate and relevant to your specific use case.
+
+### 📱 **Multi-Platform Translation Management**
+Seamlessly handle translations for web, mobile (iOS/Android), and desktop applications with support for JSON, CSV, and XCStrings formats.
+
+## Key Features
+
+- 🧠 **Context-Aware AI Translation**: OpenAI models with custom context for accurate, brand-consistent translations
+- 📁 **Universal File Support**: Import/export JSON, CSV, and XCStrings files
+- ⚡ **Batch Processing**: Translate multiple strings simultaneously with progress tracking
+- 💾 **Smart Caching**: Reduces API costs with intelligent translation caching
+- 🎨 **Modern Interface**: Clean, responsive design that works on any device
+- 🔍 **Advanced Search**: Find and manage translations quickly with powerful filtering
 
 ## Getting Started
 
@@ -30,14 +38,13 @@ A modern, AI-powered localization and translation tool built with Next.js and Fi
 - Node.js 18+ 
 - npm or yarn
 - OpenAI API key (for AI translations)
-- Firebase project (optional, for backend features)
 
 ### Installation
 
 1. Clone the repository:
 ```bash
-git clone https://github.com/yourusername/localizify.git
-cd localizify
+git clone https://github.com/jakub-kalamarz/studio.git
+cd studio
 ```
 
 2. Install dependencies:
@@ -89,8 +96,6 @@ npm start
 - `npm run start` - Start production server
 - `npm run lint` - Run ESLint
 - `npm run typecheck` - Run TypeScript type checking
-- `npm run genkit:dev` - Start Genkit development server
-- `npm run genkit:watch` - Start Genkit in watch mode
 
 ## Contributing
 
@@ -108,5 +113,5 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 - Built with [Next.js](https://nextjs.org/)
 - UI components from [Radix UI](https://radix-ui.com/)
-- AI integration via [Firebase Genkit](https://firebase.google.com/docs/genkit)
+- AI translations powered by [OpenAI](https://openai.com/)
 - Icons from [Lucide](https://lucide.dev/)
