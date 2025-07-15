@@ -1,79 +1,58 @@
 'use server';
-/**
- * @fileOverview A translation AI agent that translates a string from one language to another.
- *
- * - translateString - A function that handles the string translation process.
- * - TranslateStringInput - The input type for the translateString function.
- * - TranslateStringOutput - The return type for the translateString function.
- */
 
-import {ai} from '@/ai/genkit';
-import {z} from 'genkit';
-import { googleAI } from '@genkit-ai/googleai';
-import { configureGoogleAi } from '../genkit';
+import { ai } from '@/ai/genkit';
+import { z } from 'genkit';
+import { translateMultipleLanguages, TranslationBatchRequest, TranslationBatchResult } from '@/lib/openai-translator';
 
-// Referencing models
-const model = googleAI.model('gemini-2.5-flash');
-const modelPro = googleAI.model('gemini-2.5-pro');
-
-const allModels = {
-  geminiLite: model,
-  geminiPro: modelPro,
-}
-
-const TranslateStringInputSchema = z.object({
-  text: z.string().describe('The text to translate.'),
-  sourceLanguage: z.string().describe('The source language of the text.'),
-  targetLanguage: z.string().describe('The target language to translate to.'),
+const TranslateBatchInputSchema = z.object({
+  batches: z.array(z.object({
+    language: z.string(),
+    requests: z.array(z.object({
+      key: z.string(),
+      text: z.string(),
+    })),
+  })).describe('Array of translation batches, each containing requests for a specific language.'),
+  sourceLanguage: z.string().describe('The source language of the texts.'),
+  apiKey: z.string().describe('The API key for the translation service.'),
   model: z.string().optional().describe('The model to use for translation.'),
-  apiKey: z.string().optional().describe('The API key for the translation service.'),
+  appContext: z.string().optional().describe('Optional application context for translation.'),
 });
-export type TranslateStringInput = z.infer<typeof TranslateStringInputSchema>;
+export type TranslateBatchInput = z.infer<typeof TranslateBatchInputSchema>;
 
-const TranslateStringOutputSchema = z.object({
-  translatedText: z.string().describe('The translated text.'),
+const TranslateBatchOutputSchema = z.object({
+  results: z.array(z.object({
+    language: z.string(),
+    results: z.array(z.object({
+      key: z.string(),
+      translatedText: z.string(),
+      error: z.string().optional(),
+    })),
+    completed: z.number(),
+    failed: z.number(),
+  })).describe('Array of translation results for each language batch.'),
 });
-export type TranslateStringOutput = z.infer<typeof TranslateStringOutputSchema>;
+export type TranslateBatchOutput = z.infer<typeof TranslateBatchOutputSchema>;
 
-export async function translateString(input: TranslateStringInput): Promise<TranslateStringOutput> {
-  return translateStringFlow(input);
+export async function translateBatch(input: TranslateBatchInput): Promise<TranslateBatchOutput> {
+  return translateBatchFlow(input);
 }
 
-const translateStringPrompt = ai.definePrompt({
-  name: 'translateStringPrompt',
-  input: {schema: z.object({
-    text: TranslateStringInputSchema.shape.text,
-    sourceLanguage: TranslateStringInputSchema.shape.sourceLanguage,
-    targetLanguage: TranslateStringInputSchema.shape.targetLanguage,
-  })},
-  output: {schema: TranslateStringOutputSchema},
-  prompt: `You are a professional translator.
-Translate the following text from {{sourceLanguage}} to {{targetLanguage}}:
-
-{{text}}`,
-});
-
-const translateStringFlow = ai.defineFlow(
+const translateBatchFlow = ai.defineFlow(
   {
-    name: 'translateStringFlow',
-    inputSchema: TranslateStringInputSchema,
-    outputSchema: TranslateStringOutputSchema,
+    name: 'translateBatchFlow',
+    inputSchema: TranslateBatchInputSchema,
+    outputSchema: TranslateBatchOutputSchema,
   },
-  async input => {
-    const { model, apiKey, ...promptInput } = input;
-    if (apiKey) {
-        configureGoogleAi(apiKey);
-    }
-    const selectedModel = model ? allModels[model as keyof typeof allModels] : modelPro;
-    
-    const {output} = await ai.generate({
-        prompt: translateStringPrompt.prompt,
-        model: selectedModel,
-        input: promptInput,
-        output: {
-            schema: translateStringPrompt.output.schema
-        }
-    });
-    return output!;
+  async (input) => {
+    const { batches, sourceLanguage, apiKey, model, appContext } = input;
+
+    const results = await translateMultipleLanguages(
+      batches,
+      sourceLanguage,
+      apiKey,
+      { model, appContext }
+    );
+
+    return { results };
   }
 );

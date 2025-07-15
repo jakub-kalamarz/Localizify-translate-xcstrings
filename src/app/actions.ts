@@ -1,17 +1,6 @@
 'use server';
 
-import { translateString } from '@/ai/flows/translate-strings';
-
-interface TranslationRequest {
-    key: string;
-    text: string;
-}
-
-interface TranslationResult {
-  key: string;
-  translatedText: string;
-  error?: string;
-}
+import { translateBatch, TranslationRequest, TranslationResult } from '@/lib/openai-translator';
 
 export async function translateStringsAction(
   stringsToTranslate: TranslationRequest[],
@@ -19,27 +8,24 @@ export async function translateStringsAction(
   targetLanguage: string,
   model: string,
   apiKey: string,
+  appContext?: string,
 ): Promise<TranslationResult[]> {
-  const translations = await Promise.all(
-    stringsToTranslate.map(async (str) => {
-      try {
-        if (!str.text) {
-           return { key: str.key, translatedText: '', error: 'Source text is empty.' };
-        }
-        const result = await translateString({
-          text: str.text,
-          sourceLanguage,
-          targetLanguage,
-          model,
-          apiKey
-        });
-        return { key: str.key, translatedText: result.translatedText };
-      } catch (error) {
-        console.error(`Translation failed for key "${str.key}":`, error);
-        return { key: str.key, translatedText: '', error: 'Translation failed' };
-      }
-    })
-  );
+  if (!apiKey) {
+    throw new Error('OpenAI API key is required');
+  }
 
-  return translations;
+  try {
+    const results = await translateBatch(
+      stringsToTranslate,
+      sourceLanguage,
+      targetLanguage,
+      apiKey,
+      { model, appContext }
+    );
+    
+    return results;
+  } catch (error) {
+    console.error('Translation batch failed:', error);
+    throw error;
+  }
 }

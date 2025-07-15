@@ -1,14 +1,3 @@
-import {genkit, GenkitPlugin, configureGenkit} from 'genkit';
-import {googleAI} from '@genkit-ai/googleai';
+import {genkit} from 'genkit';
 
-export function configureGoogleAi(apiKey: string) {
-    const plugins: GenkitPlugin[] = [googleAI({apiKey})];
-    
-    configureGenkit({
-        plugins: plugins,
-    });
-}
-
-export const ai = genkit({
-  plugins: [googleAI()],
-});
+export const ai = genkit({});
