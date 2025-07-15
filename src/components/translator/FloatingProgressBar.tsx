@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, Loader2, CheckCircle, AlertCircle } from 'lucide-react';
+import { X, Loader2, CheckCircle, AlertCircle, Pause, Play, Square } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -10,6 +10,11 @@ interface FloatingProgressBarProps {
   progress: TranslationProgressItem[];
   onClose: () => void;
   onViewDetails: () => void;
+  onPause?: () => void;
+  onResume?: () => void;
+  onStop?: () => void;
+  isPaused?: boolean;
+  canPause?: boolean;
 }
 
 export function FloatingProgressBar({
@@ -17,6 +22,11 @@ export function FloatingProgressBar({
   progress,
   onClose,
   onViewDetails,
+  onPause,
+  onResume,
+  onStop,
+  isPaused = false,
+  canPause = false,
 }: FloatingProgressBarProps) {
   if (!isVisible || progress.length === 0) return null;
 
@@ -31,6 +41,8 @@ export function FloatingProgressBar({
   const activeLanguages = progress.filter(p => p.status === 'in-progress');
   const completedLanguages = progress.filter(p => p.status === 'completed');
   const failedLanguages = progress.filter(p => p.status === 'failed');
+  
+  const isInProgress = activeLanguages.length > 0 && !isCompleted;
 
   return (
     <div className="fixed bottom-4 right-4 z-50 animate-in slide-in-from-bottom-4 duration-300">
@@ -44,13 +56,17 @@ export function FloatingProgressBar({
                 ) : (
                   <CheckCircle className="h-5 w-5 text-green-500" />
                 )
+              ) : isPaused ? (
+                <Pause className="h-5 w-5 text-yellow-500" />
               ) : (
                 <Loader2 className="h-5 w-5 animate-spin text-blue-500" />
               )}
               <h3 className="font-semibold text-sm">
                 {isCompleted 
                   ? 'Translation Complete' 
-                  : 'Translating...'
+                  : isPaused 
+                    ? 'Translation Paused'
+                    : 'Translating...'
                 }
               </h3>
             </div>
@@ -89,14 +105,50 @@ export function FloatingProgressBar({
                   </span>
                 )}
               </span>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={onViewDetails}
-                className="h-6 px-2 text-xs text-primary hover:text-primary/80"
-              >
-                Details
-              </Button>
+              <div className="flex items-center gap-1">
+                {canPause && isInProgress && (
+                  <>
+                    {isPaused ? (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={onResume}
+                        className="h-6 w-6 p-0 hover:bg-secondary"
+                        title="Resume translation"
+                      >
+                        <Play className="h-3 w-3" />
+                      </Button>
+                    ) : (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={onPause}
+                        className="h-6 w-6 p-0 hover:bg-secondary"
+                        title="Pause translation"
+                      >
+                        <Pause className="h-3 w-3" />
+                      </Button>
+                    )}
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={onStop}
+                      className="h-6 w-6 p-0 hover:bg-secondary"
+                      title="Stop translation"
+                    >
+                      <Square className="h-3 w-3" />
+                    </Button>
+                  </>
+                )}
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={onViewDetails}
+                  className="h-6 px-2 text-xs text-primary hover:text-primary/80"
+                >
+                  Details
+                </Button>
+              </div>
             </div>
           </div>
         </CardContent>

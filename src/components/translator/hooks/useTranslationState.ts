@@ -27,6 +27,8 @@ export function useTranslationState(
   const [selectedLanguage, setSelectedLanguage] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState<number>(1);
   const itemsPerPage = 100;
+  const [isTranslationPaused, setIsTranslationPaused] = useState<boolean>(false);
+  const [translationAbortController, setTranslationAbortController] = useState<AbortController | null>(null);
 
   // Load API key, app context, and model from localStorage on mount
   useEffect(() => {
@@ -331,6 +333,11 @@ export function useTranslationState(
       requests: requests,
     }));
 
+    // Create abort controller for this translation
+    const abortController = new AbortController();
+    setTranslationAbortController(abortController);
+    setIsTranslationPaused(false);
+
     onTranslationStart?.();
 
     try {
@@ -351,7 +358,7 @@ export function useTranslationState(
         batches,
         sourceLanguage,
         openaiApiKey,
-        { model: selectedModel, appContext },
+        { model: selectedModel, appContext, abortSignal: abortController.signal },
         onTranslationProgress
       );
 
@@ -376,24 +383,47 @@ export function useTranslationState(
       });
 
       setSelectedCells([]); // Clear selection after translation
+      setTranslationAbortController(null);
       onTranslationComplete?.(true);
     } catch (error) {
       console.error('Batch translation failed:', error);
-      // Revert status to error for selected cells on failure
-      setStrings(currentStrings =>
-        currentStrings.map(s => {
-          const newTranslations = { ...s.translations };
-          selectedCells.forEach(cell => {
-            if (s.key === cell.key && newTranslations[cell.lang] && newTranslations[cell.lang].status === 'in-progress') {
-              newTranslations[cell.lang].status = 'error';
-            }
-          });
-          return { ...s, translations: newTranslations };
-        })
-      );
+      
+      // Check if it was cancelled
+      const wasCancelled = error instanceof Error && error.message.includes('cancelled');
+      
+      // Revert status to error for selected cells on failure (unless cancelled)
+      if (!wasCancelled) {
+        setStrings(currentStrings =>
+          currentStrings.map(s => {
+            const newTranslations = { ...s.translations };
+            selectedCells.forEach(cell => {
+              if (s.key === cell.key && newTranslations[cell.lang] && newTranslations[cell.lang].status === 'in-progress') {
+                newTranslations[cell.lang].status = 'error';
+              }
+            });
+            return { ...s, translations: newTranslations };
+          })
+        );
+      } else {
+        // If cancelled, revert to previous status
+        setStrings(currentStrings =>
+          currentStrings.map(s => {
+            const newTranslations = { ...s.translations };
+            selectedCells.forEach(cell => {
+              if (s.key === cell.key && newTranslations[cell.lang] && newTranslations[cell.lang].status === 'in-progress') {
+                newTranslations[cell.lang].status = 'untranslated';
+              }
+            });
+            return { ...s, translations: newTranslations };
+          })
+        );
+      }
+      
+      setTranslationAbortController(null);
+      setIsTranslationPaused(false);
       onTranslationComplete?.(false);
     }
-  }, [selectedCells, strings, sourceLanguage, openaiApiKey, selectedModel, appContext, onTranslationStart, onTranslationComplete]);
+  }, [selectedCells, strings, sourceLanguage, openaiApiKey, selectedModel, appContext, onTranslationStart, onTranslationComplete, onTranslationProgress]);
 
   const handleSelectLanguage = useCallback((lang: string) => {
     setSelectedLanguage(lang);
@@ -410,6 +440,22 @@ export function useTranslationState(
   const handlePageChange = useCallback((page: number) => {
     setCurrentPage(page);
   }, []);
+
+  const handlePauseTranslation = useCallback(() => {
+    setIsTranslationPaused(true);
+  }, []);
+
+  const handleResumeTranslation = useCallback(() => {
+    setIsTranslationPaused(false);
+  }, []);
+
+  const handleStopTranslation = useCallback(() => {
+    if (translationAbortController) {
+      translationAbortController.abort();
+      setTranslationAbortController(null);
+      setIsTranslationPaused(false);
+    }
+  }, [translationAbortController]);
 
   // Calculate translation progress for header
   const translationStats = useMemo(() => {
@@ -448,6 +494,8 @@ export function useTranslationState(
     originalJson,
     selectedLanguage,
     currentPage,
+    isTranslationPaused,
+    translationAbortController,
     
     // Computed
     targetLanguages,
@@ -470,5 +518,8 @@ export function useTranslationState(
     handleSelectLanguage,
     handleClearSelectedLanguage,
     handlePageChange,
+    handlePauseTranslation,
+    handleResumeTranslation,
+    handleStopTranslation,
   };
 }

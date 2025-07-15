@@ -118,6 +118,8 @@ export default function TranslatorPageNew() {
     currentPage,
     totalFilteredPages,
     translationStats,
+    isTranslationPaused,
+    translationAbortController,
     handleCellClick,
     handleTranslationValueChange,
     setRowStatus,
@@ -131,6 +133,9 @@ export default function TranslatorPageNew() {
     handleSelectLanguage,
     handleClearSelectedLanguage,
     handlePageChange,
+    handlePauseTranslation,
+    handleResumeTranslation,
+    handleStopTranslation,
   } = useTranslationState(onTranslationStart, onTranslationComplete, onTranslationProgress);
 
   // Load fullwidth preference from localStorage
@@ -529,6 +534,11 @@ export default function TranslatorPageNew() {
         progress={translationProgress}
         onClose={() => setShowFloatingProgress(false)}
         onViewDetails={() => setShowProgressDialog(true)}
+        onPause={handlePauseTranslation}
+        onResume={handleResumeTranslation}
+        onStop={handleStopTranslation}
+        isPaused={isTranslationPaused}
+        canPause={!!translationAbortController}
       />
     </div>
   );

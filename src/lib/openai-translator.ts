@@ -17,6 +17,7 @@ export interface TranslationOptions {
   temperature?: number;
   appContext?: string;
   onProgress?: (completed: number, total: number) => void;
+  abortSignal?: AbortSignal;
 }
 
 const DEFAULT_OPTIONS: TranslationOptions = {
@@ -64,6 +65,8 @@ IMPORTANT: Respond with ONLY the translated text. Do not add quotes, explanation
     messages: [{ role: 'user', content: prompt }],
     temperature: finalOptions.temperature,
     max_tokens: 1000,
+  }, {
+    signal: finalOptions.abortSignal,
   });
 
   let translatedText = response.choices[0]?.message?.content?.trim();
@@ -147,6 +150,11 @@ Use this context to make your translation more accurate and appropriate for the 
   }
 
   for (let i = 0; i < requests.length; i += chunkSize) {
+    // Check if translation was cancelled
+    if (options.abortSignal?.aborted) {
+      throw new Error('Translation cancelled');
+    }
+    
     const chunk = requests.slice(i, i + chunkSize);
     
     // Create the input for this chunk
@@ -179,6 +187,8 @@ IMPORTANT: Return a JSON object with a "translations" array where each object co
             strict: true
           }
         }
+      }, {
+        signal: options.abortSignal,
       });
 
       const content = response.choices[0]?.message?.content;
@@ -287,6 +297,11 @@ export async function translateMultipleLanguages(
   
   // Process each language sequentially to avoid overwhelming the API
   for (const batch of batches) {
+    // Check if translation was cancelled
+    if (options.abortSignal?.aborted) {
+      throw new Error('Translation cancelled');
+    }
+    
     onLanguageProgress?.(batch.language, 0, batch.requests.length, 'in-progress');
     
     try {
