@@ -5,6 +5,7 @@ import { Inter } from 'next/font/google'
 import { cn } from '@/lib/utils';
 import { ThemeProvider } from '@/components/theme-provider';
 import { ErrorBoundary } from '@/components/ui/error-boundary';
+import { Analytics } from '@vercel/analytics/react';
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-sans' })
 
@@ -31,6 +32,7 @@ export default function RootLayout({
             {children}
           </ErrorBoundary>
           <Toaster />
+          <Analytics />
         </ThemeProvider>
       </body>
     </html>
