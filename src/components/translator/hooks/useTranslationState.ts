@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import { ParsedString, TranslationStatus } from '@/types';
 import { useDebounce } from '@/hooks/useDebounce';
 import { translateMultipleLanguages } from '@/lib/openai-translator';
+import { LanguageSummary } from '@/components/translator/LanguageOverviewTable';
 
 interface SelectedCell {
   key: string;
@@ -58,7 +59,18 @@ export function useTranslationState(
   const debouncedTextFilter = useDebounce(textFilter, 300);
 
   const languageSummaries = useMemo(() => {
-    const summaries: { [key: string]: { totalKeys: number; translatedKeys: number; untranslatedKeys: number; } } = {};
+    if (strings.length === 0) return [];
+    
+    const summaries: { [key: string]: { 
+      totalKeys: number; 
+      translatedKeys: number; 
+      untranslatedKeys: number;
+      inProgressKeys: number;
+      errorKeys: number;
+      qualityReviewKeys: number;
+      qualityWarningKeys: number;
+      lastUpdated?: Date;
+    } } = {};
 
     // Include all languages plus source language (Base)
     const allLanguagesWithBase = [...allLanguages];
@@ -66,10 +78,20 @@ export function useTranslationState(
       allLanguagesWithBase.push(sourceLanguage);
     }
 
+    // Initialize summaries
     allLanguagesWithBase.forEach(lang => {
-      summaries[lang] = { totalKeys: 0, translatedKeys: 0, untranslatedKeys: 0 };
+      summaries[lang] = { 
+        totalKeys: 0, 
+        translatedKeys: 0, 
+        untranslatedKeys: 0,
+        inProgressKeys: 0,
+        errorKeys: 0,
+        qualityReviewKeys: 0,
+        qualityWarningKeys: 0
+      };
     });
 
+    // Process strings in a single pass
     strings.forEach(s => {
       // Add source language data
       if (sourceLanguage && summaries[sourceLanguage]) {
@@ -80,25 +102,52 @@ export function useTranslationState(
       Object.entries(s.translations).forEach(([lang, translation]) => {
         if (summaries[lang]) {
           summaries[lang].totalKeys++;
-          if (translation.status === 'translated' || translation.status === 'non-translatable') {
-            summaries[lang].translatedKeys++;
-          } else {
-            summaries[lang].untranslatedKeys++;
+          
+          switch (translation.status) {
+            case 'translated':
+            case 'non-translatable':
+              summaries[lang].translatedKeys++;
+              break;
+            case 'in-progress':
+              summaries[lang].inProgressKeys++;
+              break;
+            case 'error':
+              summaries[lang].errorKeys++;
+              break;
+            case 'quality-review':
+              summaries[lang].qualityReviewKeys++;
+              break;
+            case 'quality-warning':
+              summaries[lang].qualityWarningKeys++;
+              break;
+            default:
+              summaries[lang].untranslatedKeys++;
+              break;
           }
         }
       });
     });
 
-    return Object.entries(summaries).map(([language, data]) => ({
+    return Object.entries(summaries).map(([language, data]): LanguageSummary => ({
       language,
       totalKeys: data.totalKeys,
       translatedKeys: data.translatedKeys,
       untranslatedKeys: data.untranslatedKeys,
+      inProgressKeys: data.inProgressKeys,
+      errorKeys: data.errorKeys,
+      qualityReviewKeys: data.qualityReviewKeys,
+      qualityWarningKeys: data.qualityWarningKeys,
       progress: data.totalKeys > 0 ? (data.translatedKeys / data.totalKeys) * 100 : 0,
+      averageQuality: undefined, // TODO: Calculate from quality analysis
+      lastUpdated: data.lastUpdated,
+      isTranslating: false, // TODO: Track active translation state
+      isPaused: false, // TODO: Track paused translation state
+      estimatedTimeRemaining: undefined, // TODO: Calculate based on translation speed
     }));
   }, [strings, allLanguages, sourceLanguage]);
 
-  const filteredStrings = useMemo(() => {
+  // Combined filtering logic for better performance
+  const filteredData = useMemo(() => {
     let currentStrings = strings;
 
     // Handle source language viewing
@@ -143,57 +192,20 @@ export function useTranslationState(
       }
     });
 
+    const totalPages = Math.ceil(currentStrings.length / itemsPerPage);
     const startIndex = (currentPage - 1) * itemsPerPage;
     const endIndex = startIndex + itemsPerPage;
-    return currentStrings.slice(startIndex, endIndex);
+    const paginatedStrings = currentStrings.slice(startIndex, endIndex);
+
+    return {
+      filteredStrings: paginatedStrings,
+      totalFilteredPages: totalPages,
+      totalFilteredCount: currentStrings.length
+    };
   }, [strings, statusFilter, debouncedTextFilter, selectedLanguage, sourceLanguage, currentPage, itemsPerPage]);
 
-  const totalFilteredPages = useMemo(() => {
-    let currentStrings = strings;
-
-    // Handle source language viewing
-    const isViewingSourceLanguage = selectedLanguage === sourceLanguage;
-
-    if (selectedLanguage && !isViewingSourceLanguage) {
-      currentStrings = currentStrings.filter(s => s.translations[selectedLanguage]);
-    }
-
-    currentStrings = currentStrings.filter(s => {
-      const textMatch = debouncedTextFilter === '' || 
-                        s.key.toLowerCase().includes(debouncedTextFilter.toLowerCase()) || 
-                        s.sourceValue.toLowerCase().includes(debouncedTextFilter.toLowerCase());
-
-      if (!textMatch) return false;
-
-      if (statusFilter === 'all') {
-        return true;
-      }
-
-      // For source language, all strings are considered "translated"
-      if (isViewingSourceLanguage) {
-        return statusFilter === 'translated';
-      }
-
-      const targetTranslation = selectedLanguage ? s.translations[selectedLanguage] : undefined;
-
-      if (statusFilter === 'untranslated') {
-        if (selectedLanguage) {
-          return targetTranslation && (targetTranslation.status === 'new' || targetTranslation.status === 'untranslated' || targetTranslation.status === 'error');
-        } else {
-          return Object.values(s.translations).some(t => 
-            t.status === 'new' || t.status === 'untranslated' || t.status === 'error'
-          );
-        }
-      }
-
-      if (selectedLanguage) {
-        return targetTranslation && targetTranslation.status === statusFilter;
-      } else {
-        return Object.values(s.translations).some(t => t.status === statusFilter);
-      }
-    });
-    return Math.ceil(currentStrings.length / itemsPerPage);
-  }, [strings, statusFilter, debouncedTextFilter, selectedLanguage, sourceLanguage, itemsPerPage]);
+  const filteredStrings = filteredData.filteredStrings;
+  const totalFilteredPages = filteredData.totalFilteredPages;
 
   // Actions
   const handleCellClick = (key: string, lang: string) => {
@@ -294,7 +306,7 @@ export function useTranslationState(
     strings: ParsedString[];
     languages: string[];
     sourceLanguage: string;
-    originalJson: any;
+    originalJson: Xcstrings;
     fileName: string;
   }, isFromSavedFile?: boolean) => {
     setStrings(data.strings);
@@ -369,11 +381,13 @@ export function useTranslationState(
             const stringIndex = updatedStrings.findIndex(s => s.key === translationResult.key);
             if (stringIndex !== -1) {
               const targetLang = langBatch.language;
+              // Fix: Properly handle API errors as errors, not success
+              const hasError = translationResult.error || !translationResult.translatedText;
               updatedStrings[stringIndex].translations = {
                 ...updatedStrings[stringIndex].translations,
                 [targetLang]: {
                   value: translationResult.translatedText || '',
-                  status: translationResult.error ? 'error' : 'translated',
+                  status: hasError ? 'error' : 'translated',
                 },
               };
             }
@@ -457,17 +471,19 @@ export function useTranslationState(
     }
   }, [translationAbortController]);
 
-  // Calculate translation progress for header
+  // Calculate translation progress for header - optimized
   const translationStats = useMemo(() => {
     if (strings.length === 0) return { translated: 0, total: 0 };
     
-    const totalCells = strings.reduce((sum, str) => {
-      return sum + Object.keys(str.translations).length;
-    }, 0);
+    let totalCells = 0;
+    let translatedCells = 0;
     
-    const translatedCells = strings.reduce((sum, str) => {
-      return sum + Object.values(str.translations).filter(t => t.status === 'translated').length;
-    }, 0);
+    // Single pass calculation
+    strings.forEach(str => {
+      const translations = Object.values(str.translations);
+      totalCells += translations.length;
+      translatedCells += translations.filter(t => t.status === 'translated').length;
+    });
     
     return { translated: translatedCells, total: totalCells };
   }, [strings]);

@@ -19,12 +19,28 @@ interface AddLanguageDialogProps {
   allLanguages: string[];
   onAddLanguage: (code: string) => void;
   disabled?: boolean;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }
 
-export function AddLanguageDialog({ allLanguages, onAddLanguage, disabled = false }: AddLanguageDialogProps) {
+export function AddLanguageDialog({ allLanguages, onAddLanguage, disabled = false, open, onOpenChange }: AddLanguageDialogProps) {
   const [newLanguageCode, setNewLanguageCode] = useState('');
   const [isOpen, setIsOpen] = useState(false);
   const { toast } = useToast();
+  
+  const isControlled = open !== undefined;
+  const dialogOpen = isControlled ? open : isOpen;
+  
+  const handleOpenChange = (open: boolean) => {
+    if (onOpenChange) {
+      onOpenChange(open);
+    } else {
+      setIsOpen(open);
+    }
+    if (!open) {
+      setNewLanguageCode('');
+    }
+  };
 
   const handleAdd = () => {
     const input = newLanguageCode.trim();
@@ -85,28 +101,28 @@ export function AddLanguageDialog({ allLanguages, onAddLanguage, disabled = fals
     }
 
     setNewLanguageCode('');
-    setIsOpen(false);
-  };
-
-  const handleOpenChange = (open: boolean) => {
-    setIsOpen(open);
-    if (!open) {
-      setNewLanguageCode('');
+    if (onOpenChange) {
+      onOpenChange(false);
+    } else {
+      setIsOpen(false);
     }
   };
 
+
   return (
-    <Dialog open={isOpen} onOpenChange={handleOpenChange}>
-      <DialogTrigger asChild>
-        <Button variant="outline" disabled={disabled}>
-          <PlusCircle className="mr-2 h-4 w-4" /> Add Language
-        </Button>
-      </DialogTrigger>
+    <Dialog open={dialogOpen} onOpenChange={handleOpenChange}>
+      {!isControlled && (
+        <DialogTrigger asChild>
+          <Button variant="outline" disabled={disabled}>
+            <PlusCircle className="mr-2 h-4 w-4" /> Add Language
+          </Button>
+        </DialogTrigger>
+      )}
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
           <DialogTitle>Add New Language</DialogTitle>
           <DialogDescription>
-            Enter a single language code (e.g., "en", "fr", "zh-Hans") or multiple codes separated by commas.
+            Enter a single language code (e.g., &quot;en&quot;, &quot;fr&quot;, &quot;zh-Hans&quot;) or multiple codes separated by commas.
             Supported: en, pl, de, es, fr, it, pt, ru, tr, zh-Hans, zh-Hant, ja, ko, ar, hi, vi, id, th, nl, sv, fi, no, da, cs, hu, ro, sk, bg, el, hr, lt, lv, sl, et
           </DialogDescription>
         </DialogHeader>

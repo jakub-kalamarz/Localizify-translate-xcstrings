@@ -13,19 +13,34 @@ import { ShortcutAction, formatShortcutKey } from '@/hooks/useKeyboardShortcuts'
 
 interface KeyboardShortcutsDialogProps {
   shortcuts: ShortcutAction[];
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }
 
-export function KeyboardShortcutsDialog({ shortcuts }: KeyboardShortcutsDialogProps) {
+export function KeyboardShortcutsDialog({ shortcuts, open, onOpenChange }: KeyboardShortcutsDialogProps) {
   const [isOpen, setIsOpen] = useState(false);
+  
+  const isControlled = open !== undefined;
+  const dialogOpen = isControlled ? open : isOpen;
+  
+  const handleOpenChange = (open: boolean) => {
+    if (onOpenChange) {
+      onOpenChange(open);
+    } else {
+      setIsOpen(open);
+    }
+  };
 
   return (
-    <Dialog open={isOpen} onOpenChange={setIsOpen}>
-      <DialogTrigger asChild>
-        <Button variant="outline" size="sm">
-          <Keyboard className="h-4 w-4 mr-2" />
-          Shortcuts
-        </Button>
-      </DialogTrigger>
+    <Dialog open={dialogOpen} onOpenChange={handleOpenChange}>
+      {!isControlled && (
+        <DialogTrigger asChild>
+          <Button variant="outline" size="sm">
+            <Keyboard className="h-4 w-4 mr-2" />
+            Shortcuts
+          </Button>
+        </DialogTrigger>
+      )}
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
           <DialogTitle>Keyboard Shortcuts</DialogTitle>

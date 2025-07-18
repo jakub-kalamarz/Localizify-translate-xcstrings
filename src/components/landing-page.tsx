@@ -1,7 +1,7 @@
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion"
-import { ArrowRight, Bot, FileJson, Globe, Zap, Shield, Download, Sparkles, Clock, Check, Star, Users, Gauge } from "lucide-react"
+import { ArrowRight, Bot, FileJson, Globe, Zap, Shield, Check, Gauge } from "lucide-react"
 import { ThemeToggle } from "./theme-toggle"
 
 export function LandingPage() {
@@ -237,7 +237,7 @@ export function LandingPage() {
                   Ready to go global?
                 </h2>
                 <p className="mx-auto max-w-2xl text-lg text-primary-foreground/80 leading-relaxed">
-                  Join thousands of developers who've streamlined their localization workflow with Localizify.
+                  Join thousands of developers who&apos;ve streamlined their localization workflow with Localizify.
                 </p>
               </div>
               <div className="flex flex-col sm:flex-row gap-6 justify-center items-center">

@@ -2,7 +2,7 @@
 
 import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
-import { translateMultipleLanguages, TranslationBatchRequest, TranslationBatchResult } from '@/lib/openai-translator';
+import { translateMultipleLanguages } from '@/lib/openai-translator';
 
 const TranslateBatchInputSchema = z.object({
   batches: z.array(z.object({

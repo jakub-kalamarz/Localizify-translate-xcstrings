@@ -1,6 +1,6 @@
 'use client';
 
-import { useTransition, useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { useTransition, useState, useEffect, useRef, useCallback, useMemo, memo } from 'react';
 import { Download, Globe, Maximize2, Minimize2 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -18,16 +18,23 @@ import { AddLanguageDialog } from './AddLanguageDialog';
 import { BulkSelectionControls } from './BulkSelectionControls';
 import { KeyboardShortcutsDialog } from './KeyboardShortcutsDialog';
 import { TranslationProgressDialog, TranslationProgressItem } from './TranslationProgressDialog';
+import { EnhancedTranslationProgressDialog, EnhancedTranslationProgressItem } from './EnhancedTranslationProgressDialog';
 import { FloatingProgressBar } from './FloatingProgressBar';
+import { EnhancedFloatingProgressBar } from './EnhancedFloatingProgressBar';
 import { LanguageOverviewTable } from './LanguageOverviewTable';
+import { ModernHeader } from './ModernHeader';
 import { Pagination, PaginationContent, PaginationItem, PaginationPrevious, PaginationLink, PaginationNext } from '@/components/ui/pagination';
 import { useTranslationState } from './hooks/useTranslationState';
 import { useKeyboardShortcuts, createTranslationShortcuts } from '@/hooks/useKeyboardShortcuts';
+import { translationCache } from '@/lib/translation-cache';
+import { CopyQualityEnhancementDialog } from './CopyQualityEnhancementDialog';
+import { useCopyQualityEnhancement } from '@/hooks/useCopyQualityEnhancement';
+import { scheduleStateUpdate } from '@/utils/async-utils';
 
-export default function TranslatorPageNew() {
+const TranslatorPageNew = memo(function TranslatorPageNew() {
   const [isPending, startTransition] = useTransition();
   const [isFullwidth, setIsFullwidth] = useState(false);
-  const [translationProgress, setTranslationProgress] = useState<TranslationProgressItem[]>([]);
+  const [translationProgress, setTranslationProgress] = useState<EnhancedTranslationProgressItem[]>([]);
   const [showProgressDialog, setShowProgressDialog] = useState(false);
   const [showFloatingProgress, setShowFloatingProgress] = useState(false);
   const hasLoadedInitialFile = useRef(false);
@@ -43,6 +50,8 @@ export default function TranslatorPageNew() {
   const onTranslationProgress = useCallback((language: string, completed: number, total: number, status: 'pending' | 'in-progress' | 'completed' | 'failed') => {
     setTranslationProgress(prev => {
       const existingIndex = prev.findIndex(item => item.language === language);
+      const now = new Date();
+      
       if (existingIndex !== -1) {
         const newProgress = [...prev];
         const currentItem = newProgress[existingIndex];
@@ -50,12 +59,23 @@ export default function TranslatorPageNew() {
         // Calculate failed count based on the difference when status is completed
         const failed = status === 'completed' ? Math.max(0, total - completed) : currentItem.failed;
         
+        // Calculate speed (items per minute)
+        const timeDiff = currentItem.startTime ? (now.getTime() - currentItem.startTime.getTime()) / 1000 / 60 : 0;
+        const speed = timeDiff > 0 ? completed / timeDiff : 0;
+        
+        // Calculate ETA (estimated time remaining in minutes)
+        const remaining = total - completed;
+        const eta = speed > 0 ? remaining / speed : 0;
+        
         newProgress[existingIndex] = { 
           ...currentItem, 
           completed: status === 'failed' ? 0 : completed, 
           total, 
-          status,
-          failed: status === 'failed' ? total : failed
+          status: status === 'completed' && failed > 0 ? 'failed' : status,
+          failed: status === 'failed' ? total : failed,
+          speed: speed > 0 ? speed : currentItem.speed,
+          eta: eta > 0 ? eta : undefined,
+          endTime: status === 'completed' || status === 'failed' ? now : undefined
         };
         return newProgress;
       } else {
@@ -63,34 +83,41 @@ export default function TranslatorPageNew() {
           language, 
           completed: status === 'failed' ? 0 : completed, 
           total, 
-          status, 
-          failed: status === 'failed' ? total : 0 
+          status: status === 'completed' && total - completed > 0 ? 'failed' : status,
+          failed: status === 'failed' ? total : 0,
+          startTime: now,
+          speed: 0,
+          eta: undefined
         }];
       }
     });
   }, []);
 
   const onTranslationComplete = useCallback((success: boolean) => {
-    const totalCompleted = translationProgress.reduce((sum, r) => sum + r.completed, 0);
-    const totalFailed = translationProgress.reduce((sum, r) => sum + r.failed, 0);
+    setTranslationProgress(current => {
+      const totalCompleted = current.reduce((sum, r) => sum + r.completed, 0);
+      const totalFailed = current.reduce((sum, r) => sum + r.failed, 0);
 
-    if (success) {
-      toast({ 
-        title: 'Translation Complete',
-        description: `${totalCompleted} successful, ${totalFailed} failed`
-      });
-    } else {
-      toast({ 
-        variant: 'destructive', 
-        title: 'Translation Failed', 
-        description: 'Please check your API key and try again.' 
-      });
-    }
+      if (success) {
+        toast({ 
+          title: 'Translation Complete',
+          description: `${totalCompleted} successful, ${totalFailed} failed`
+        });
+      } else {
+        toast({ 
+          variant: 'destructive', 
+          title: 'Translation Failed', 
+          description: 'Please check your API key and try again.' 
+        });
+      }
+      return current;
+    });
+    
     // Keep dialog open longer to ensure user sees it
     setTimeout(() => setShowProgressDialog(false), 5000);
     // Keep floating progress bar open for 10 seconds after completion
     setTimeout(() => setShowFloatingProgress(false), 10000);
-  }, [toast, translationProgress]);
+  }, [toast]);
 
   const {
     strings,
@@ -138,12 +165,33 @@ export default function TranslatorPageNew() {
     handleStopTranslation,
   } = useTranslationState(onTranslationStart, onTranslationComplete, onTranslationProgress);
 
-  // Load fullwidth preference from localStorage
+  // Copy quality enhancement
+  const {
+    state: qualityState,
+    analyzeStrings,
+    applyImprovements,
+    previewChanges,
+    closeDialog: closeQualityDialog,
+    resetState: resetQualityState
+  } = useCopyQualityEnhancement({
+    enabled: true,
+    autoAnalyze: true,
+    minScore: 70
+  });
+
+  // Load fullwidth preference from localStorage and setup cache maintenance
   useEffect(() => {
     const saved = localStorage.getItem('translator_fullwidth');
     if (saved) {
       setIsFullwidth(JSON.parse(saved));
     }
+    
+    // Setup periodic cache maintenance
+    const maintenanceInterval = setInterval(() => {
+      translationCache.performMaintenance();
+    }, 5 * 60 * 1000); // Every 5 minutes
+    
+    return () => clearInterval(maintenanceInterval);
   }, []);
 
   // Save current file data to localStorage
@@ -171,6 +219,7 @@ export default function TranslatorPageNew() {
         const fileData = JSON.parse(savedFile);
         // Only restore if it's recent (within 24 hours)
         if (Date.now() - fileData.timestamp < 24 * 60 * 60 * 1000) {
+          // Use the original handleFileLoad, not the enhanced one, to avoid quality analysis on saved files
           handleFileLoad({
             strings: fileData.strings,
             languages: fileData.allLanguages,
@@ -185,6 +234,28 @@ export default function TranslatorPageNew() {
       }
     }
   }, [handleFileLoad]);
+
+  // Enhanced file load with quality analysis
+  const handleFileLoadWithQuality = useCallback((data: any, isFromSavedFile?: boolean) => {
+    // First load the file normally
+    handleFileLoad(data, isFromSavedFile);
+    
+    // Then analyze quality if it's a new file (not from saved)
+    // Use scheduleStateUpdate to avoid state updates during render
+    if (!isFromSavedFile && data.strings && data.strings.length > 0) {
+      scheduleStateUpdate(async () => {
+        try {
+          await analyzeStrings(data.strings, data.sourceLanguage, {
+            showDialog: true,
+            focusAreas: ['clarity', 'consistency', 'formatting']
+          });
+        } catch (error) {
+          console.error('Quality analysis failed:', error);
+          // Don't block file loading if quality analysis fails
+        }
+      });
+    }
+  }, [handleFileLoad, analyzeStrings]);
 
   const updateOriginalJsonWithCurrentState = useCallback(() => {
     if (!originalJson) return null;
@@ -251,8 +322,8 @@ export default function TranslatorPageNew() {
     localStorage.setItem('translator_fullwidth', JSON.stringify(newValue));
   }, [isFullwidth]);
 
-  // Keyboard shortcuts
-  const shortcuts = useMemo(() => createTranslationShortcuts({
+  // Keyboard shortcuts - stable references
+  const keyboardHandlers = useMemo(() => ({
     onTranslate: handleTranslateSelected,
     onSelectAll: handleSelectAll,
     onClearSelection: handleClearSelection,
@@ -260,6 +331,8 @@ export default function TranslatorPageNew() {
     onImport: () => document.getElementById('file-input')?.click(),
     onSave: handleExport, // Use export as save for now
   }), [handleTranslateSelected, handleSelectAll, handleClearSelection, handleExport]);
+  
+  const shortcuts = useMemo(() => createTranslationShortcuts(keyboardHandlers), [keyboardHandlers]);
 
   useKeyboardShortcuts(shortcuts, strings.length > 0);
 
@@ -301,7 +374,16 @@ export default function TranslatorPageNew() {
     setShowProgressDialog(true);
     setShowFloatingProgress(true);
     setTimeout(() => {
-      setTranslationProgress([{ language, total: untranslatedStringsForLanguage.length, completed: 0, failed: 0, status: 'in-progress' }]);
+      setTranslationProgress([{ 
+        language, 
+        total: untranslatedStringsForLanguage.length, 
+        completed: 0, 
+        failed: 0, 
+        status: 'in-progress',
+        startTime: new Date(),
+        speed: 0,
+        eta: undefined
+      }]);
     }, 10);
     
     // Start translation after a small delay to ensure dialog is visible
@@ -371,59 +453,29 @@ export default function TranslatorPageNew() {
 
   return (
     <div className="min-h-screen bg-muted/50">
-      <div className="bg-background border-b border-border sticky top-0 z-50">
-        <div className={`${isFullwidth ? 'max-w-full' : 'max-w-7xl'} mx-auto px-6 py-6`}>
-          <div className="flex justify-between items-center">
-            <div className="flex items-center gap-4">
-              <div className="h-10 w-10 bg-gradient-to-br from-primary to-primary/90 rounded-2xl flex items-center justify-center shadow-lg">
-                <Globe className="h-5 w-5 text-primary-foreground" />
-              </div>
-              <div>
-                <h1 className="text-2xl font-bold text-foreground">Localizify</h1>
-                <p className="text-sm text-muted-foreground">
-                  Import, view, and translate .xcstrings files with AI
-                  
-                </p>
-              </div>
-            </div>
-            <div className="flex items-center gap-3">
-              <FileUpload onFileLoad={handleFileLoad} />
-              <Button 
-                onClick={handleExport} 
-                variant="outline" 
-                disabled={strings.length === 0}
-                className="rounded-xl"
-              >
-                <Download className="mr-2 h-4 w-4" /> Export File
-              </Button>
-              <AddLanguageDialog 
-                allLanguages={allLanguages} 
-                onAddLanguage={handleAddNewLanguage}
-                disabled={strings.length === 0}
-              />
-              <Button
-                onClick={toggleFullwidth}
-                variant="outline"
-                size="icon"
-                className="rounded-xl"
-                title={isFullwidth ? 'Exit fullwidth' : 'Enable fullwidth'}
-              >
-                {isFullwidth ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
-              </Button>
-              <SettingsDialog 
-                apiKey={openaiApiKey} 
-                onApiKeyChange={setOpenaiApiKey}
-                appContext={appContext}
-                onAppContextChange={setAppContext}
-                selectedModel={selectedModel}
-                onModelChange={setSelectedModel}
-              />
-              <KeyboardShortcutsDialog shortcuts={shortcuts} />
-              <ThemeToggle />
-            </div>
-          </div>
-        </div>
-      </div>
+      <ModernHeader
+        fileName={fileName}
+        strings={strings}
+        sourceLanguage={sourceLanguage}
+        allLanguages={allLanguages}
+        selectedLanguage={selectedLanguage}
+        translationStats={translationStats}
+        isTranslating={!!translationAbortController}
+        translationProgress={translationProgress.length > 0 ? translationProgress[0].completed / translationProgress[0].total * 100 : undefined}
+        openaiApiKey={openaiApiKey}
+        appContext={appContext}
+        selectedModel={selectedModel}
+        isFullwidth={isFullwidth}
+        onFileLoad={handleFileLoadWithQuality}
+        onExport={handleExport}
+        onAddNewLanguage={handleAddNewLanguage}
+        onToggleFullwidth={toggleFullwidth}
+        onApiKeyChange={setOpenaiApiKey}
+        onAppContextChange={setAppContext}
+        onModelChange={setSelectedModel}
+        onClearSelectedLanguage={handleClearSelectedLanguage}
+        shortcuts={shortcuts}
+      />
       
       <div className={`${isFullwidth ? 'max-w-full' : 'max-w-7xl'} mx-auto px-6 py-8`}>
         {strings.length === 0 ? (
@@ -523,13 +575,15 @@ export default function TranslatorPageNew() {
         )}
       </div>
       
-      <TranslationProgressDialog
+      <EnhancedTranslationProgressDialog
         isOpen={showProgressDialog}
         progress={translationProgress}
         onClose={() => setShowProgressDialog(false)}
+        canPause={!!translationAbortController}
+        canRetry={true}
       />
       
-      <FloatingProgressBar
+      <EnhancedFloatingProgressBar
         isVisible={showFloatingProgress}
         progress={translationProgress}
         onClose={() => setShowFloatingProgress(false)}
@@ -540,6 +594,19 @@ export default function TranslatorPageNew() {
         isPaused={isTranslationPaused}
         canPause={!!translationAbortController}
       />
+
+      <CopyQualityEnhancementDialog
+        isOpen={qualityState.showDialog}
+        onClose={closeQualityDialog}
+        results={qualityState.results}
+        overallQualityScore={qualityState.overallQualityScore}
+        totalImprovements={qualityState.totalImprovements}
+        onApplyImprovements={applyImprovements}
+        onPreviewChanges={previewChanges}
+        loading={qualityState.isAnalyzing}
+      />
     </div>
   );
-}
+});
+
+export default TranslatorPageNew;

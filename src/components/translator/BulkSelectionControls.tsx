@@ -25,7 +25,6 @@ interface BulkSelectionControlsProps {
 }
 
 export function BulkSelectionControls({
-  strings,
   filteredStrings,
   targetLanguages,
   selectedCells,

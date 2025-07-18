@@ -10,7 +10,7 @@ interface FileUploadProps {
     strings: ParsedString[];
     languages: string[];
     sourceLanguage: string;
-    originalJson: any;
+    originalJson: Xcstrings;
     fileName: string;
   }) => void;
   disabled?: boolean;

@@ -18,7 +18,7 @@ export const XCStringsSchema = z.object({
         state: z.enum(['translated', 'new', 'needs_review']),
         value: z.string(),
       }),
-      substitutions: z.any().optional(),
+      substitutions: z.unknown().optional(),
     })).optional(),
   })),
   version: z.string().optional(),
@@ -110,7 +110,9 @@ export function validateApiKey(apiKey: string): { isValid: boolean; error?: stri
   }
 }
 
-export function validateTranslationRequest(request: any): { isValid: boolean; error?: string } {
+import { TranslationRequest } from '@/lib/openai-translator';
+
+export function validateTranslationRequest(request: TranslationRequest): { isValid: boolean; error?: string } {
   try {
     TranslationRequestSchema.parse(request);
     return { isValid: true };

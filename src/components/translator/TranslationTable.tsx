@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import { ParsedString, TranslationStatus } from '@/types';
 import { Table, TableBody, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { MemoizedTableRow } from './MemoizedTableRow';
@@ -14,7 +15,7 @@ interface TranslationTableProps {
   selectedLanguage: string | null;
 }
 
-export function TranslationTable({
+export const TranslationTable = memo(function TranslationTable({
   sourceLanguage,
   targetLanguages,
   selectedCells,
@@ -67,4 +68,4 @@ export function TranslationTable({
       </Table>
     </div>
   );
-}
+});

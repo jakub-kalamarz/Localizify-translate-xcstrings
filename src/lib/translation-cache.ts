@@ -94,6 +94,19 @@ class TranslationCacheManager {
     }
   }
 
+  // Auto-cleanup method to be called periodically
+  performMaintenance(): void {
+    this.cleanExpiredEntries();
+    this.limitCacheSize();
+  }
+
+  // Method to check if cache is getting too large
+  isMemoryHigh(): boolean {
+    const entries = Object.values(this.cache);
+    const cacheSize = new Blob([JSON.stringify(this.cache)]).size;
+    return cacheSize > 5 * 1024 * 1024; // 5MB threshold
+  }
+
   get(
     text: string,
     sourceLanguage: string,

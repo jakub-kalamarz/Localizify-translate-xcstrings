@@ -1,4 +1,5 @@
 import OpenAI from 'openai';
+import { translationCache } from './translation-cache';
 
 export interface TranslationRequest {
   key: string;
@@ -89,8 +90,60 @@ export async function translateBatch(
 ): Promise<TranslationResult[]> {
   const finalOptions = { ...DEFAULT_OPTIONS, ...options };
   
-  // Use structured output for batch translation
-  return await translateBatchStructured(requests, sourceLanguage, targetLanguage, apiKey, finalOptions);
+  // Check cache first and filter out cached results
+  const cachedResults: TranslationResult[] = [];
+  const uncachedRequests: TranslationRequest[] = [];
+  
+  for (const request of requests) {
+    const cachedTranslation = translationCache.get(
+      request.text,
+      sourceLanguage,
+      targetLanguage,
+      finalOptions.model!
+    );
+    
+    if (cachedTranslation) {
+      cachedResults.push({
+        key: request.key,
+        translatedText: cachedTranslation
+      });
+    } else {
+      uncachedRequests.push(request);
+    }
+  }
+  
+  // If all requests are cached, return cached results
+  if (uncachedRequests.length === 0) {
+    return cachedResults;
+  }
+  
+  // Translate uncached requests
+  const uncachedResults = await translateBatchStructured(
+    uncachedRequests, 
+    sourceLanguage, 
+    targetLanguage, 
+    apiKey, 
+    finalOptions
+  );
+  
+  // Cache the new results
+  for (const result of uncachedResults) {
+    if (!result.error && result.translatedText) {
+      const originalRequest = uncachedRequests.find(req => req.key === result.key);
+      if (originalRequest) {
+        translationCache.set(
+          originalRequest.text,
+          sourceLanguage,
+          targetLanguage,
+          finalOptions.model!,
+          result.translatedText
+        );
+      }
+    }
+  }
+  
+  // Combine cached and uncached results
+  return [...cachedResults, ...uncachedResults];
 }
 
 async function translateBatchStructured(
@@ -224,6 +277,13 @@ IMPORTANT: Return a JSON object with a "translations" array where each object co
       }
 
     } catch (error) {
+      // If the error is a 401 Unauthorized, we want to stop the entire process
+      // because the API key is invalid and all subsequent requests will fail.
+      if (error instanceof OpenAI.APIError && error.status === 401) {
+        // Re-throw the error to be caught by the calling function
+        throw error;
+      }
+
       console.error(`Structured translation failed for chunk ${i / chunkSize + 1}:`, error);
       
       // Add error results for this chunk
@@ -295,50 +355,60 @@ export async function translateMultipleLanguages(
 ): Promise<TranslationBatchResult[]> {
   const results: TranslationBatchResult[] = [];
   
-  // Process each language sequentially to avoid overwhelming the API
-  for (const batch of batches) {
+  // Process languages with controlled concurrency (2 at a time)
+  const CONCURRENT_LANGUAGES = 2;
+  const languageChunks: TranslationBatchRequest[][] = [];
+  
+  for (let i = 0; i < batches.length; i += CONCURRENT_LANGUAGES) {
+    languageChunks.push(batches.slice(i, i + CONCURRENT_LANGUAGES));
+  }
+  
+  for (const chunk of languageChunks) {
     // Check if translation was cancelled
     if (options.abortSignal?.aborted) {
       throw new Error('Translation cancelled');
     }
     
-    onLanguageProgress?.(batch.language, 0, batch.requests.length, 'in-progress');
-    
-    try {
-      const languageResults = await translateBatch(
-        batch.requests,
-        sourceLanguage,
-        batch.language,
-        apiKey,
-        {
-          ...options,
-          onProgress: (completed, total) => {
-            onLanguageProgress?.(batch.language, completed, total, 'in-progress');
+    // Process chunk in parallel
+    const chunkPromises = chunk.map(async (batch) => {
+      onLanguageProgress?.(batch.language, 0, batch.requests.length, 'in-progress');
+      
+      try {
+        const languageResults = await translateBatch(
+          batch.requests,
+          sourceLanguage,
+          batch.language,
+          apiKey,
+          {
+            ...options,
+            onProgress: (completed, total) => {
+              onLanguageProgress?.(batch.language, completed, total, 'in-progress');
+            }
           }
-        }
-      );
-      
-      const completed = languageResults.filter(r => !r.error).length;
-      const failed = languageResults.filter(r => r.error).length;
-      
-      results.push({
-        language: batch.language,
-        results: languageResults,
-        completed,
-        failed
-      });
-      
-      onLanguageProgress?.(batch.language, completed + failed, batch.requests.length, 'completed');
-    } catch (error) {
-      results.push({
-        language: batch.language,
-        results: [],
-        completed: 0,
-        failed: batch.requests.length
-      });
-      
-      onLanguageProgress?.(batch.language, 0, batch.requests.length, 'failed');
-    }
+        );
+        
+        const completed = languageResults.filter(r => !r.error).length;
+        const failed = languageResults.filter(r => r.error).length;
+        
+        const result: TranslationBatchResult = {
+          language: batch.language,
+          results: languageResults,
+          completed,
+          failed
+        };
+        
+        onLanguageProgress?.(batch.language, completed + failed, batch.requests.length, 'completed');
+        return result;
+      } catch (error) {
+        onLanguageProgress?.(batch.language, 0, batch.requests.length, 'failed');
+        // Re-throw the error to be caught by the top-level try-catch in the component
+        throw error;
+      }
+    });
+    
+    // Wait for all languages in this chunk to complete
+    const chunkResults = await Promise.all(chunkPromises);
+    results.push(...chunkResults);
   }
   
   return results;

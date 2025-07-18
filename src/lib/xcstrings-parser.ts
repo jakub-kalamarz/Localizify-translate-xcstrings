@@ -1,7 +1,7 @@
 import type { ParsedString, StringEntry, LanguageTranslation } from '@/types';
 
 export function parseXcstrings(
-  jsonData: any
+  jsonData: Xcstrings
 ): { parsedData: ParsedString[]; languages: string[]; sourceLanguage: string } {
   const sourceLanguage = jsonData.sourceLanguage || 'en';
   const strings = jsonData.strings || {};

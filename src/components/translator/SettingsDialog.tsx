@@ -20,9 +20,12 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
+import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/hooks/use-toast';
 import { validateApiKey } from '@/lib/validation';
 import { AVAILABLE_MODELS } from '@/lib/openai-translator';
+import { QualitySettings } from '@/types';
+import { QualitySettingsDialog } from './QualitySettingsDialog';
 
 interface SettingsDialogProps {
   apiKey: string;
@@ -31,9 +34,24 @@ interface SettingsDialogProps {
   onAppContextChange: (context: string) => void;
   selectedModel: string;
   onModelChange: (model: string) => void;
+  qualitySettings?: QualitySettings;
+  onQualitySettingsChange?: (settings: QualitySettings) => void;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }
 
-export function SettingsDialog({ apiKey, onApiKeyChange, appContext, onAppContextChange, selectedModel, onModelChange }: SettingsDialogProps) {
+export function SettingsDialog({ 
+  apiKey, 
+  onApiKeyChange, 
+  appContext, 
+  onAppContextChange, 
+  selectedModel, 
+  onModelChange,
+  qualitySettings,
+  onQualitySettingsChange,
+  open,
+  onOpenChange
+}: SettingsDialogProps) {
   const [tempApiKey, setTempApiKey] = useState(apiKey);
   const [tempAppContext, setTempAppContext] = useState(appContext);
   const [tempModel, setTempModel] = useState(selectedModel);
@@ -71,11 +89,19 @@ export function SettingsDialog({ apiKey, onApiKeyChange, appContext, onAppContex
     localStorage.setItem('selected_model', tempModel);
     
     toast({ title: 'Settings saved successfully.' });
-    setIsOpen(false);
+    if (onOpenChange) {
+      onOpenChange(false);
+    } else {
+      setIsOpen(false);
+    }
   };
 
   const handleOpenChange = (open: boolean) => {
-    setIsOpen(open);
+    if (onOpenChange) {
+      onOpenChange(open);
+    } else {
+      setIsOpen(open);
+    }
     if (open) {
       setTempApiKey(apiKey);
       setTempAppContext(appContext);
@@ -83,14 +109,19 @@ export function SettingsDialog({ apiKey, onApiKeyChange, appContext, onAppContex
     }
   };
 
+  const isControlled = open !== undefined;
+  const dialogOpen = isControlled ? open : isOpen;
+
   return (
-    <Dialog open={isOpen} onOpenChange={handleOpenChange}>
-      <DialogTrigger asChild>
-        <Button variant="outline" size="icon" className="rounded-xl">
-          <Cog className="h-4 w-4" />
-          <span className="sr-only">Settings</span>
-        </Button>
-      </DialogTrigger>
+    <Dialog open={dialogOpen} onOpenChange={handleOpenChange}>
+      {!isControlled && (
+        <DialogTrigger asChild>
+          <Button variant="outline" size="icon" className="rounded-xl">
+            <Cog className="h-4 w-4" />
+            <span className="sr-only">Settings</span>
+          </Button>
+        </DialogTrigger>
+      )}
       <DialogContent className="sm:max-w-[500px] rounded-2xl">
         <DialogHeader>
           <DialogTitle className="text-2xl font-bold">Translation Settings</DialogTitle>
@@ -158,6 +189,22 @@ export function SettingsDialog({ apiKey, onApiKeyChange, appContext, onAppContex
               Provide context about your app to help AI generate more accurate and contextually appropriate translations.
             </p>
           </div>
+          
+          {qualitySettings && onQualitySettingsChange && (
+            <>
+              <Separator />
+              <div className="grid gap-3">
+                <Label className="text-sm font-semibold">Copy Quality Settings</Label>
+                <p className="text-sm text-muted-foreground">
+                  Configure quality analysis settings to improve your copy and translations.
+                </p>
+                <QualitySettingsDialog 
+                  settings={qualitySettings} 
+                  onSettingsChange={onQualitySettingsChange}
+                />
+              </div>
+            </>
+          )}
         </div>
         <DialogFooter>
           <Button 

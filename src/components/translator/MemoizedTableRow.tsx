@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { MoreHorizontal, Copy, XCircle, CheckCircle, RefreshCw } from 'lucide-react';
+import { MoreHorizontal, Copy, XCircle, CheckCircle, RefreshCw, Sparkles } from 'lucide-react';
 import { ParsedString, TranslationStatus } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -15,6 +15,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { QualityIndicator } from './QualityIndicator';
 
 interface SelectedCell {
   key: string;
@@ -30,6 +31,7 @@ interface MemoizedTableRowProps {
   onTranslationValueChange: (key: string, lang: string, value: string) => void;
   onCopySourceToAll: (key: string, markAsTranslated?: boolean) => void;
   onSetRowStatus: (key: string, status: TranslationStatus) => void;
+  onAnalyzeQuality?: (key: string, lang?: string) => void;
 }
 
 const StatusDisplay = React.memo(({ status, value }: { status: TranslationStatus; value: string }) => {
@@ -37,7 +39,7 @@ const StatusDisplay = React.memo(({ status, value }: { status: TranslationStatus
     return <CheckCircle className="h-5 w-5 text-green-600 shrink-0" />;
   }
 
-  if (status === 'new' || status === 'untranslated' || status === 'non-translatable' || status === 'in-progress' || status === 'error') {
+  if (status === 'new' || status === 'untranslated' || status === 'non-translatable' || status === 'in-progress' || status === 'error' || status === 'quality-review' || status === 'quality-warning') {
     const variant: "secondary" | "destructive" | "outline" | "default" = (() => {
       switch (status) {
         case 'new': return 'secondary';
@@ -45,10 +47,12 @@ const StatusDisplay = React.memo(({ status, value }: { status: TranslationStatus
         case 'non-translatable': return 'default';
         case 'in-progress': return 'outline';
         case 'error': return 'destructive';
+        case 'quality-review': return 'outline';
+        case 'quality-warning': return 'destructive';
         default: return 'secondary';
       }
     })();
-    const text = status === 'untranslated' ? 'new' : status;
+    const text = status === 'untranslated' ? 'new' : status.replace('-', ' ');
     return <Badge variant={variant} className="capitalize text-xs">{text}</Badge>;
   }
   
@@ -57,13 +61,13 @@ const StatusDisplay = React.memo(({ status, value }: { status: TranslationStatus
 
 export const MemoizedTableRow = React.memo(({
   s,
-  sourceLanguage,
   targetLanguages,
   selectedCells,
   onCellClick,
   onTranslationValueChange,
   onCopySourceToAll,
   onSetRowStatus,
+  onAnalyzeQuality,
 }: MemoizedTableRowProps) => {
   return (
     <TableRow>
@@ -73,7 +77,14 @@ export const MemoizedTableRow = React.memo(({
       <TableCell className="text-xs text-muted-foreground border-r">
         {s.comment}
       </TableCell>
-      <TableCell className="border-r">{s.sourceValue}</TableCell>
+      <TableCell className="border-r">
+        <div className="space-y-2">
+          <div>{s.sourceValue}</div>
+          {s.sourceQuality && (
+            <QualityIndicator analysis={s.sourceQuality} compact />
+          )}
+        </div>
+      </TableCell>
       {targetLanguages.map(lang => {
         const translation = s.translations[lang];
         const isSelected = selectedCells.some(c => c.key === s.key && c.lang === lang);
@@ -100,6 +111,9 @@ export const MemoizedTableRow = React.memo(({
                 placeholder={canSelect ? 'Click to select for AI translation' : isNonTranslatable ? 'Marked as non-translatable' : 'Edit translation'}
                 disabled={isNonTranslatable}
               />
+              {translation?.quality && (
+                <QualityIndicator analysis={translation.quality} compact />
+              )}
               <div className="flex items-center justify-between">
                 <span className="text-xs text-muted-foreground">
                   {translation?.value?.length || 0} chars
@@ -135,6 +149,12 @@ export const MemoizedTableRow = React.memo(({
               <Copy className="mr-2 h-4 w-4" />
               <span>Copy Source to All</span>
             </DropdownMenuItem>
+            {onAnalyzeQuality && (
+              <DropdownMenuItem onClick={() => onAnalyzeQuality(s.key)}>
+                <Sparkles className="mr-2 h-4 w-4" />
+                <span>Analyze Quality</span>
+              </DropdownMenuItem>
+            )}
           </DropdownMenuContent>
         </DropdownMenu>
       </TableCell>
