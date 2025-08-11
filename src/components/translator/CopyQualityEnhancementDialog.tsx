@@ -84,7 +84,7 @@ export function CopyQualityEnhancementDialog({
       case 'high': return 'text-red-600 bg-red-50';
       case 'medium': return 'text-yellow-600 bg-yellow-50';
       case 'low': return 'text-blue-600 bg-blue-50';
-      default: return 'text-gray-600 bg-gray-50';
+      default: return 'text-muted-foreground bg-muted';
     }
   };
 
@@ -101,12 +101,12 @@ export function CopyQualityEnhancementDialog({
     const colors = {
       clarity: 'bg-blue-100 text-blue-800',
       consistency: 'bg-purple-100 text-purple-800',
-      formatting: 'bg-gray-100 text-gray-800',
+      formatting: 'bg-muted text-muted-foreground',
       context: 'bg-green-100 text-green-800',
       length: 'bg-yellow-100 text-yellow-800',
       placeholders: 'bg-red-100 text-red-800',
     };
-    return colors[category as keyof typeof colors] || 'bg-gray-100 text-gray-800';
+    return colors[category as keyof typeof colors] || 'bg-muted text-muted-foreground';
   };
 
   const getQualityScoreColor = (score: number) => {

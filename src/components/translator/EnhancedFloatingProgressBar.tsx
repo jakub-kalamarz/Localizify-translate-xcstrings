@@ -76,7 +76,7 @@ export function EnhancedFloatingProgressBar({
     if (isPaused) return 'border-yellow-200 bg-yellow-50';
     if (isInProgress) return 'border-blue-200 bg-blue-50';
     if (isCompleted) return 'border-green-200 bg-green-50';
-    return 'border-gray-200 bg-gray-50';
+    return 'border-border bg-muted';
   };
 
   const getProgressColor = () => {
@@ -202,7 +202,7 @@ export function EnhancedFloatingProgressBar({
                             item.status === 'in-progress' && "bg-blue-500 animate-pulse",
                             item.status === 'paused' && "bg-yellow-500",
                             item.status === 'failed' && "bg-red-500",
-                            item.status === 'pending' && "bg-gray-400"
+                            item.status === 'pending' && "bg-muted-foreground"
                           )} />
                           <span>{item.language}</span>
                         </div>

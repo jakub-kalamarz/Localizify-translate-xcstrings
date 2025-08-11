@@ -56,12 +56,12 @@ export function QualityImprovementSuggestions({
     const colors = {
       clarity: 'bg-blue-100 text-blue-800',
       consistency: 'bg-purple-100 text-purple-800',
-      formatting: 'bg-gray-100 text-gray-800',
+      formatting: 'bg-muted text-muted-foreground',
       context: 'bg-green-100 text-green-800',
       length: 'bg-yellow-100 text-yellow-800',
       placeholders: 'bg-red-100 text-red-800',
     };
-    return colors[type] || 'bg-gray-100 text-gray-800';
+    return colors[type] || 'bg-muted text-muted-foreground';
   };
 
   const getSeverityColor = (severity: QualityIssue['severity']) => {
@@ -70,7 +70,7 @@ export function QualityImprovementSuggestions({
       medium: 'border-yellow-200 bg-yellow-50',
       low: 'border-blue-200 bg-blue-50',
     };
-    return colors[severity] || 'border-gray-200 bg-gray-50';
+    return colors[severity] || 'border-border bg-muted';
   };
 
   // Generate improvement suggestions based on issues
