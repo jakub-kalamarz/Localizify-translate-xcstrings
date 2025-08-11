@@ -30,7 +30,18 @@ class TranslationCacheManager {
   ): string {
     // Create a hash-like key from the input parameters
     const input = `${text}|${sourceLanguage}|${targetLanguage}|${model}`;
-    return btoa(input).replace(/[^a-zA-Z0-9]/g, '').substring(0, 32);
+    
+    // Simple hash function that works in both browser and Node.js
+    let hash = 0;
+    for (let i = 0; i < input.length; i++) {
+      const char = input.charCodeAt(i);
+      hash = ((hash << 5) - hash) + char;
+      hash = hash & hash; // Convert to 32-bit integer
+    }
+    
+    // Convert to positive number and return as alphanumeric string
+    const positiveHash = Math.abs(hash);
+    return positiveHash.toString(36).substring(0, 32);
   }
 
   private loadFromStorage(): void {
