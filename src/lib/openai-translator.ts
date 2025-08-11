@@ -95,6 +95,11 @@ export async function translateBatch(
   const uncachedRequests: TranslationRequest[] = [];
   
   for (const request of requests) {
+    // Skip translation if key is empty
+    if (request.key === "") {
+      continue;
+    }
+    
     const cachedTranslation = translationCache.get(
       request.text,
       sourceLanguage,
@@ -421,6 +426,15 @@ async function translateWithRetry(
   apiKey: string,
   options: TranslationOptions
 ): Promise<TranslationResult> {
+  // Skip translation if key is empty
+  if (request.key === "") {
+    return { 
+      key: request.key, 
+      translatedText: '', 
+      error: 'Key is empty' 
+    };
+  }
+
   let lastError: Error | null = null;
   
   for (let attempt = 0; attempt < options.maxRetries!; attempt++) {
